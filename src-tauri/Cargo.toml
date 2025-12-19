@@ -1,0 +1,37 @@
+[package]
+name = "aeroftp"
+version = "0.1.0"
+description = "AeroFTP - Fast, Beautiful, Reliable FTP Client"
+authors = ["axpdev"]
+license = "MIT"
+repository = "https://github.com/axpnet/aeroftp"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "ftp_client_gui_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2", features = [] }
+tauri-plugin-log = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"
+tokio = { version = "1", features = ["full"] }
+suppaftp = { version = "7", features = ["tokio"] }
+anyhow = "1"
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+dirs = "5"
+chrono = "0.4"
+base64 = "0.22"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

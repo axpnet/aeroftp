@@ -1,0 +1,501 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ======================================
+   AeroFTP - Apple Style Design System
+   ====================================== */
+
+:root {
+  /* Light Mode Colors */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f5f5f7;
+  --color-bg-tertiary: #e8e8ed;
+  --color-surface: rgba(255, 255, 255, 0.72);
+  --color-surface-hover: rgba(255, 255, 255, 0.85);
+  --color-text-primary: #1d1d1f;
+  --color-text-secondary: #6e6e73;
+  --color-text-tertiary: #86868b;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.12);
+  --color-accent: #0071e3;
+  --color-accent-hover: #0077ed;
+  --color-success: #30d158;
+  --color-warning: #ff9f0a;
+  --color-error: #ff453a;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.16);
+  --shadow-glow: 0 0 40px rgba(0, 113, 227, 0.15);
+
+  /* Blur */
+  --blur-glass: 20px;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.4s ease;
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+}
+
+/* Dark Mode */
+.dark {
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #1c1c1e;
+  --color-bg-tertiary: #2c2c2e;
+  --color-surface: rgba(44, 44, 46, 0.85);
+  --color-surface-hover: rgba(58, 58, 60, 0.9);
+  --color-text-primary: #f5f5f7;
+  --color-text-secondary: #a1a1a6;
+  --color-text-tertiary: #636366;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
+  --color-accent: #0a84ff;
+  --color-accent-hover: #409cff;
+  color-scheme: dark;
+}
+
+/* Fix for select dropdowns in dark mode */
+.dark select {
+  color-scheme: dark;
+  color: #f5f5f7;
+  background-color: #374151;
+}
+
+.dark select option {
+  background-color: #374151;
+  color: #f5f5f7;
+}
+
+/* Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  overflow: hidden;
+  user-select: none;
+  font-size: 14px;
+  /* Smaller base size like VS Code */
+  letter-spacing: -0.01em;
+  /* Tighter tracking */
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* ======================================
+   Component Styles
+   ====================================== */
+
+/* Glass Effect Card */
+@layer components {
+  .glass-card {
+    background: var(--color-surface);
+    backdrop-filter: blur(var(--blur-glass));
+    -webkit-backdrop-filter: blur(var(--blur-glass));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
+  }
+
+  .glass-card:hover {
+    background: var(--color-surface-hover);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Button Styles */
+  .btn-primary {
+    @apply px-5 py-2.5 rounded-xl font-medium text-white;
+    background: linear-gradient(135deg, var(--color-accent), #00c6ff);
+    box-shadow: 0 4px 15px rgba(0, 113, 227, 0.3);
+    transition: all var(--transition-normal);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0, 113, 227, 0.4);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .btn-secondary {
+    @apply px-5 py-2.5 rounded-xl font-medium;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    transition: all var(--transition-normal);
+  }
+
+  .btn-secondary:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-border-strong);
+  }
+
+  .btn-danger {
+    @apply px-5 py-2.5 rounded-xl font-medium text-white;
+    background: linear-gradient(135deg, #ff453a, #ff6961);
+    box-shadow: 0 4px 15px rgba(255, 69, 58, 0.3);
+    transition: all var(--transition-normal);
+  }
+
+  .btn-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(255, 69, 58, 0.4);
+  }
+
+  .btn-icon {
+    @apply p-2.5 rounded-xl;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+    transition: all var(--transition-fast);
+  }
+
+  .btn-icon:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-accent);
+  }
+
+  /* Input Styles */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl text-base;
+    background: var(--color-bg-primary);
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text-primary);
+    transition: all var(--transition-fast);
+  }
+
+  .input-field:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+  }
+
+  .input-field::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  /* File List Item - Enterprise Style */
+  .file-item {
+    @apply flex items-center gap-3 px-3 py-1.5 rounded-md cursor-pointer;
+    /* More compact */
+    transition: all var(--transition-fast);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.85rem;
+    /* 13.6px */
+  }
+
+  .file-item:hover {
+    background: var(--color-bg-tertiary);
+  }
+
+  .file-item.selected {
+    background: rgba(0, 113, 227, 0.12);
+  }
+
+  .file-item.selected:hover {
+    background: rgba(0, 113, 227, 0.18);
+  }
+
+  /* Status Indicator */
+  .status-dot {
+    @apply w-2.5 h-2.5 rounded-full;
+    animation: pulseSubtle 2s infinite;
+  }
+
+  .status-connected {
+    @apply bg-green-500;
+    box-shadow: 0 0 8px rgba(48, 209, 88, 0.5);
+  }
+
+  .status-disconnected {
+    @apply bg-gray-400;
+  }
+
+  .status-connecting {
+    @apply bg-yellow-500;
+    animation: pulse 1s infinite;
+  }
+
+  /* Panel Header */
+  .panel-header {
+    @apply flex items-center justify-between px-4 py-3;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  /* Loading Spinner */
+  .spinner {
+    @apply w-5 h-5 border-2 border-current border-t-transparent rounded-full;
+    animation: spin 0.8s linear infinite;
+  }
+}
+
+/* ======================================
+   Animations
+   ====================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseSubtle {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ======================================
+   Utility Classes
+   ====================================== */
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+.truncate-path {
+  direction: rtl;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Drag ghost */
+.dragging {
+  opacity: 0.5;
+}
+
+/* Selection highlight */
+::selection {
+  background: rgba(0, 113, 227, 0.3);
+}
+
+/* Indeterminate progress animation */
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  50% {
+    transform: translateX(100%);
+  }
+
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+/* ======================================
+   File Browser Table Styling
+   ====================================== */
+
+/* Smooth scroll for file panels */
+.overflow-auto {
+  scroll-behavior: smooth;
+}
+
+/* Table base styling - AUTO layout for natural column sizing */
+table {
+  table-layout: auto;
+  border-collapse: collapse;
+}
+
+/* Table header with subtle shadow on scroll */
+thead {
+  z-index: 10;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.dark thead {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Table row transitions */
+tbody tr {
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+tbody tr:hover {
+  transform: translateX(2px);
+}
+
+tbody tr:active {
+  transform: scale(0.995);
+}
+
+/* Size and Modified columns - don't wrap */
+td:nth-child(2),
+th:nth-child(2),
+td:nth-child(3),
+th:nth-child(3) {
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* ======================================
+   Interactive Elements Polish
+   ====================================== */
+
+/* Buttons with smooth press effect */
+button {
+  transition: all 0.15s ease;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Input focus glow */
+input:focus,
+select:focus {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* File icons subtle animation */
+.lucide-folder,
+.lucide-file-text {
+  transition: transform 0.15s ease;
+}
+
+tbody tr:hover .lucide-folder,
+tbody tr:hover .lucide-file-text {
+  transform: scale(1.1);
+}
+
+/* Selection highlight pulse */
+@keyframes selection-pulse {
+
+  0%,
+  100% {
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+
+  50% {
+    background-color: rgba(59, 130, 246, 0.2);
+  }
+}
+
+/* Preview panel slide animation */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.2s ease-out;
+}
+
+/* Status bar subtle glow for connected state */
+.status-connected {
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
+}
+
+/* Scroll fade indicators */
+.scroll-fade-bottom {
+  mask-image: linear-gradient(to bottom, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 90%, transparent 100%);
+}

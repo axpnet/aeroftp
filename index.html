@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="AeroFTP - Fast, beautiful, and reliable FTP client" />
+    <meta name="theme-color" content="#0ea5e9" />
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <title>AeroFTP - Modern FTP Client</title>
+    
+    <style>
+      /* Prevent FOUC */
+      html { visibility: hidden; }
+      html.loaded { visibility: visible; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      document.documentElement.classList.add('loaded');
+    </script>
+  </body>
+</html>
