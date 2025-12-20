@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 
 export interface ContextMenuItem {
     label: string;
-    icon: string;
+    icon: React.ReactNode;  // Changed from string to ReactNode for Lucide icons
     action: () => void;
     disabled?: boolean;
     danger?: boolean;
@@ -19,6 +19,12 @@ export interface ContextMenuProps {
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }) => {
     const menuRef = useRef<HTMLDivElement>(null);
+    const [isVisible, setIsVisible] = useState(false);
+
+    // Smooth entrance animation
+    useEffect(() => {
+        requestAnimationFrame(() => setIsVisible(true));
+    }, []);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -43,7 +49,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
     // Adjust position to not overflow viewport
     const adjustedPosition = () => {
         const menuWidth = 200;
-        const menuHeight = items.length * 40;
+        const menuHeight = items.length * 38;
         const padding = 10;
 
         let adjustedX = x;
@@ -65,13 +71,21 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
     return (
         <div
             ref={menuRef}
-            className="fixed z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-1.5 min-w-48 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            className={`
+                fixed z-50 bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg 
+                rounded-xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 
+                py-1 min-w-[180px] overflow-hidden
+                transition-all duration-150 ease-out
+                ${isVisible
+                    ? 'opacity-100 scale-100 translate-y-0'
+                    : 'opacity-0 scale-95 -translate-y-1'}
+            `}
             style={{ left: pos.left, top: pos.top }}
         >
             {items.map((item, index) => (
                 <React.Fragment key={index}>
                     {item.divider && index > 0 && (
-                        <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+                        <div className="h-px bg-gray-200/80 dark:bg-gray-700/80 my-1 mx-2" />
                     )}
                     <button
                         onClick={() => {
@@ -82,17 +96,20 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
                         }}
                         disabled={item.disabled}
                         className={`
-              w-full px-4 py-2 text-left text-sm flex items-center gap-3 transition-colors
-              ${item.disabled
+                            w-full px-3 py-1.5 text-left text-[13px] flex items-center gap-2.5 
+                            transition-all duration-100
+                            ${item.disabled
                                 ? 'text-gray-400 cursor-not-allowed'
                                 : item.danger
-                                    ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30'
-                                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                    ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40'
+                                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-gray-700/80'
                             }
-            `}
+                        `}
                     >
-                        <span className="text-base w-5 text-center">{item.icon}</span>
-                        <span>{item.label}</span>
+                        <span className="w-4 h-4 flex items-center justify-center opacity-70">
+                            {item.icon}
+                        </span>
+                        <span className="font-medium">{item.label}</span>
                     </button>
                 </React.Fragment>
             ))}
@@ -135,3 +152,4 @@ export const useContextMenu = () => {
 };
 
 export default ContextMenu;
+

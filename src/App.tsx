@@ -25,7 +25,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import {
   Sun, Moon, Monitor, FolderUp, RefreshCw, FolderPlus, FolderOpen,
   Download, Upload, Pencil, Trash2, X, ArrowUp, ArrowDown,
-  Folder, FileText, Globe, HardDrive, Settings, Search, Eye, Link2, Unlink, PanelTop
+  Folder, FileText, Globe, HardDrive, Settings, Search, Eye, Link2, Unlink, PanelTop, Shield, Cloud
 } from 'lucide-react';
 
 // ============ Utility Functions ============
@@ -908,11 +908,11 @@ const App: React.FC = () => {
     const filesToUse = Array.from(selection);
 
     const items: ContextMenuItem[] = [
-      { label: downloadLabel, icon: '⬇️', action: () => downloadMultipleFiles(filesToUse) },
-      { label: 'Preview', icon: '👁️', action: () => openDevToolsPreview(file, true), disabled: count > 1 || file.is_dir || !isPreviewable(file.name) },
-      { label: 'Rename', icon: '✏️', action: () => renameFile(file.path, file.name, true), disabled: count > 1 },
-      { label: 'Permissions', icon: '🛡️', action: () => setPermissionsDialog({ file, visible: true }), disabled: count > 1 },
-      { label: 'Delete', icon: '🗑️', action: () => deleteMultipleRemoteFiles(filesToUse), danger: true, divider: true },
+      { label: downloadLabel, icon: <Download size={14} />, action: () => downloadMultipleFiles(filesToUse) },
+      { label: 'Preview', icon: <Eye size={14} />, action: () => openDevToolsPreview(file, true), disabled: count > 1 || file.is_dir || !isPreviewable(file.name) },
+      { label: 'Rename', icon: <Pencil size={14} />, action: () => renameFile(file.path, file.name, true), disabled: count > 1 },
+      { label: 'Permissions', icon: <Shield size={14} />, action: () => setPermissionsDialog({ file, visible: true }), disabled: count > 1 },
+      { label: 'Delete', icon: <Trash2 size={14} />, action: () => deleteMultipleRemoteFiles(filesToUse), danger: true, divider: true },
     ];
     contextMenu.show(e, items);
   };
@@ -934,14 +934,13 @@ const App: React.FC = () => {
     const items: ContextMenuItem[] = [
       {
         label: uploadLabel,
-        icon: '☁️',
-        // Use wrapper to upload explicit list
+        icon: <Cloud size={14} />,
         action: () => uploadMultipleFiles(filesToUpload),
         disabled: !isConnected
       },
-      { label: 'Preview', icon: '👁️', action: () => openDevToolsPreview(file, false), disabled: count > 1 || file.is_dir || !isPreviewable(file.name) },
-      { label: 'Rename', icon: '✏️', action: () => renameFile(file.path, file.name, false), disabled: count > 1 },
-      { label: 'Delete', icon: '🗑️', action: () => deleteMultipleLocalFiles(filesToUpload), danger: true, divider: true },
+      { label: 'Preview', icon: <Eye size={14} />, action: () => openDevToolsPreview(file, false), disabled: count > 1 || file.is_dir || !isPreviewable(file.name) },
+      { label: 'Rename', icon: <Pencil size={14} />, action: () => renameFile(file.path, file.name, false), disabled: count > 1 },
+      { label: 'Delete', icon: <Trash2 size={14} />, action: () => deleteMultipleLocalFiles(filesToUpload), danger: true, divider: true },
     ];
     contextMenu.show(e, items);
   };
@@ -1402,6 +1401,8 @@ const App: React.FC = () => {
         remoteFileCount={remoteFiles.length}
         localFileCount={localFiles.length}
         activePanel={activePanel}
+        devToolsOpen={devToolsOpen}
+        onToggleDevTools={() => setDevToolsOpen(!devToolsOpen)}
       />
     </div>
   );

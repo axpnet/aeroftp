@@ -1,6 +1,6 @@
 // DevTools Types - Extensible architecture for future phases
 
-export type DevToolsTab = 'preview' | 'editor' | 'terminal';
+export type DevToolsTab = 'preview' | 'editor' | 'terminal' | 'chat';
 
 export interface DevToolsState {
     isOpen: boolean;

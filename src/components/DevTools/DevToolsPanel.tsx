@@ -1,8 +1,10 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Code, Terminal, Edit3, ChevronDown, ChevronUp, X, Maximize2, Minimize2 } from 'lucide-react';
+import { Code, Terminal, Edit3, ChevronDown, ChevronUp, X, Maximize2, Minimize2, MessageSquare } from 'lucide-react';
 import { DevToolsTab, PreviewFile } from './types';
 import { FilePreview } from './FilePreview';
 import { CodeEditor } from './CodeEditor';
+import { SSHTerminal } from './SSHTerminal';
+import { AIChat } from './AIChat';
 
 interface DevToolsPanelProps {
     isOpen: boolean;
@@ -64,8 +66,9 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
 
     const tabs: { id: DevToolsTab; label: string; icon: React.ReactNode; available: boolean }[] = [
         { id: 'preview', label: 'Preview', icon: <Code size={14} />, available: true },
-        { id: 'editor', label: 'Editor', icon: <Edit3 size={14} />, available: true },  // Phase 2 - NOW ACTIVE!
-        { id: 'terminal', label: 'Terminal', icon: <Terminal size={14} />, available: false },  // Phase 3
+        { id: 'editor', label: 'Editor', icon: <Edit3 size={14} />, available: true },
+        { id: 'terminal', label: 'Terminal', icon: <Terminal size={14} />, available: true },  // Phase 3 - Active!
+        { id: 'chat', label: 'AI Chat', icon: <MessageSquare size={14} />, available: true },  // Phase 4 - Preview
     ];
 
     if (!isOpen) {
@@ -154,10 +157,10 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
                     />
                 )}
                 {activeTab === 'terminal' && (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                        <Terminal size={32} className="mr-2 opacity-30" />
-                        <span>SSH Terminal - Coming in Phase 3</span>
-                    </div>
+                    <SSHTerminal className="h-full" />
+                )}
+                {activeTab === 'chat' && (
+                    <AIChat className="h-full" />
                 )}
             </div>
         </div>
