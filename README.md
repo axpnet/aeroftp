@@ -39,7 +39,7 @@ AeroFTP includes an integrated DevTools panel (like Chrome DevTools) for web dev
 | ------------ | ------------------------------------------- | -------- |
 | **Preview**  | Syntax-highlighted file preview             | ✅ Active |
 | **Editor**   | Monaco Editor (VS Code) with inline editing | ✅ Active |
-| **Terminal** | SSH Terminal                                | 🔜 Coming |
+| **Terminal** | Local PTY Terminal                          | ✅ Active |
 
 #### Editor Features
 - Full **Monaco Editor** (same as VS Code)
