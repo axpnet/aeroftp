@@ -23,7 +23,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import {
   Sun, Moon, Monitor, FolderUp, RefreshCw, FolderPlus, FolderOpen,
   Download, Upload, Pencil, Trash2, X, ArrowUp, ArrowDown,
-  Folder, FileText, Globe, HardDrive, Settings, Search, Eye
+  Folder, FileText, Globe, HardDrive, Settings, Search, Eye, Link2, Unlink
 } from 'lucide-react';
 
 // ============ Utility Functions ============
@@ -264,6 +264,8 @@ const App: React.FC = () => {
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [showMenuBar, setShowMenuBar] = useState(true);
+  const [isSyncNavigation, setIsSyncNavigation] = useState(false); // Navigation Sync feature
+  const [syncBasePaths, setSyncBasePaths] = useState<{ remote: string; local: string } | null>(null);
 
   // Upload Queue
   const uploadQueue = useUploadQueue();
@@ -476,10 +478,57 @@ const App: React.FC = () => {
       const response: FileListResponse = await invoke('change_directory', { path });
       setRemoteFiles(response.files);
       setCurrentRemotePath(response.current_path);
+
+      // Navigation Sync: mirror to local panel if enabled
+      if (isSyncNavigation && syncBasePaths) {
+        const relativePath = response.current_path.startsWith(syncBasePaths.remote)
+          ? response.current_path.slice(syncBasePaths.remote.length)
+          : '';
+        const newLocalPath = syncBasePaths.local + relativePath;
+        // Only sync if the local path exists (don't show errors if it doesn't)
+        try {
+          const files: LocalFile[] = await invoke('get_local_files', { path: newLocalPath });
+          setLocalFiles(files);
+          setCurrentLocalPath(newLocalPath);
+        } catch {
+          // Local directory doesn't exist, silently ignore sync
+        }
+      }
     } catch (error) { toast.error('Error', `Failed to change directory: ${error}`); }
   };
 
-  const changeLocalDirectory = async (path: string) => { await loadLocalFiles(path); };
+  const changeLocalDirectory = async (path: string) => {
+    await loadLocalFiles(path);
+
+    // Navigation Sync: mirror to remote panel if enabled
+    if (isSyncNavigation && syncBasePaths && isConnected) {
+      const relativePath = path.startsWith(syncBasePaths.local)
+        ? path.slice(syncBasePaths.local.length)
+        : '';
+      const newRemotePath = syncBasePaths.remote + relativePath;
+      // Only sync if the remote path exists
+      try {
+        const response: FileListResponse = await invoke('change_directory', { path: newRemotePath });
+        setRemoteFiles(response.files);
+        setCurrentRemotePath(response.current_path);
+      } catch {
+        // Remote directory doesn't exist, silently ignore sync
+      }
+    }
+  };
+
+  // Toggle navigation sync and set base paths
+  const toggleSyncNavigation = () => {
+    if (!isSyncNavigation) {
+      // Enabling sync: save current paths as base
+      setSyncBasePaths({ remote: currentRemotePath, local: currentLocalPath });
+      toast.success('Navigation Sync Enabled', `Syncing: ${currentRemotePath} ↔ ${currentLocalPath}`);
+    } else {
+      setSyncBasePaths(null);
+      toast.info('Navigation Sync Disabled');
+    }
+    setIsSyncNavigation(!isSyncNavigation);
+  };
 
   const downloadFile = async (remoteFilePath: string, fileName: string) => {
     try {
@@ -879,9 +928,22 @@ const App: React.FC = () => {
                   </button>
                 )}
                 {isConnected && (
-                  <button onClick={() => uploadMultipleFiles()} className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm flex items-center gap-1.5" title="Upload multiple files">
-                    <Upload size={16} /> Upload Files
-                  </button>
+                  <>
+                    <button onClick={() => uploadMultipleFiles()} className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm flex items-center gap-1.5" title="Upload multiple files">
+                      <Upload size={16} /> Upload Files
+                    </button>
+                    <button
+                      onClick={toggleSyncNavigation}
+                      className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 transition-colors ${isSyncNavigation
+                          ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                          : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'
+                        }`}
+                      title={isSyncNavigation ? 'Navigation Sync ON - Click to disable' : 'Enable Navigation Sync between panels'}
+                    >
+                      {isSyncNavigation ? <Link2 size={16} /> : <Unlink size={16} />}
+                      {isSyncNavigation ? 'Synced' : 'Sync'}
+                    </button>
+                  </>
                 )}
               </div>
               <div className="flex gap-2">

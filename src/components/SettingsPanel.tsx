@@ -309,8 +309,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
                                                     <p className="font-medium">{server.name}</p>
                                                     <p className="text-sm text-gray-500">
                                                         {server.host}:{server.port} • {server.username}
-                                                        {server.initialPath && ` • ${server.initialPath}`}
                                                     </p>
+                                                    {(server.initialPath || server.localInitialPath) && (
+                                                        <p className="text-xs text-gray-400 mt-1">
+                                                            {server.initialPath && <span>📁 Remote: {server.initialPath}</span>}
+                                                            {server.initialPath && server.localInitialPath && ' • '}
+                                                            {server.localInitialPath && <span>💻 Local: {server.localInitialPath}</span>}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <button
