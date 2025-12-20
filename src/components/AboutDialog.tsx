@@ -1,13 +1,21 @@
 import * as React from 'react';
-import { X, Github, Heart, Cpu, Globe } from 'lucide-react';
+import { X, Github, Heart, Cpu, Globe, Mail, Bitcoin } from 'lucide-react';
 
 interface AboutDialogProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
+// Get version from package.json (injected at build time)
+const APP_VERSION = '0.3.0';
+
 export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
+
+    const copyBtcAddress = () => {
+        navigator.clipboard.writeText('YOUR_BTC_ADDRESS_HERE');
+        // Could add a toast notification here
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -29,34 +37,17 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                         <X size={16} />
                     </button>
 
-                    {/* Logo */}
-                    <div className="w-20 h-20 mx-auto mb-4 bg-white rounded-2xl shadow-lg flex items-center justify-center">
-                        <svg viewBox="0 0 100 100" className="w-14 h-14">
-                            <defs>
-                                <linearGradient id="aboutLogoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stopColor="#0ea5e9" />
-                                    <stop offset="50%" stopColor="#06b6d4" />
-                                    <stop offset="100%" stopColor="#14b8a6" />
-                                </linearGradient>
-                            </defs>
-                            <path
-                                d="M50 15 L75 35 L75 65 L50 85 L25 65 L25 35 Z"
-                                fill="url(#aboutLogoGradient)"
-                                stroke="none"
-                            />
-                            <path
-                                d="M40 45 L50 35 L60 45 M50 35 L50 65"
-                                stroke="white"
-                                strokeWidth="4"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                fill="none"
-                            />
-                        </svg>
+                    {/* Logo - using real AeroFTP logo */}
+                    <div className="w-20 h-20 mx-auto mb-4 bg-white rounded-2xl shadow-lg flex items-center justify-center p-2">
+                        <img
+                            src="/icons/AeroFTP_simbol_color_512x512.png"
+                            alt="AeroFTP"
+                            className="w-full h-full object-contain"
+                        />
                     </div>
 
                     <h1 className="text-2xl font-bold">AeroFTP</h1>
-                    <p className="text-white/80 text-sm mt-1">Version 1.0.0</p>
+                    <p className="text-white/80 text-sm mt-1">Version {APP_VERSION}</p>
                 </div>
 
                 {/* Content */}
@@ -78,9 +69,9 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                     </div>
 
                     {/* Links */}
-                    <div className="flex justify-center gap-4 pt-2">
+                    <div className="flex flex-wrap justify-center gap-3 pt-2">
                         <a
-                            href="https://github.com/axpdev/aeroftp"
+                            href="https://github.com/axpnet/aeroftp"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors text-sm"
@@ -88,6 +79,30 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                             <Github size={16} />
                             GitHub
                         </a>
+                        <a
+                            href="mailto:aeroftp@axpdev.it"
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors text-sm"
+                        >
+                            <Mail size={16} />
+                            Contact
+                        </a>
+                    </div>
+
+                    {/* Donations */}
+                    <div className="mt-4 p-3 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl">
+                        <p className="text-center text-sm text-gray-600 dark:text-gray-300 mb-2">
+                            ☕ Support the project
+                        </p>
+                        <div className="flex justify-center gap-2">
+                            <button
+                                onClick={copyBtcAddress}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-xs"
+                                title="Copy BTC address"
+                            >
+                                <Bitcoin size={14} />
+                                Donate BTC
+                            </button>
+                        </div>
                     </div>
 
                     {/* Credits */}

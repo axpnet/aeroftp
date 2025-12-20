@@ -24,7 +24,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import {
   Sun, Moon, Monitor, FolderUp, RefreshCw, FolderPlus, FolderOpen,
   Download, Upload, Pencil, Trash2, X, ArrowUp, ArrowDown,
-  Folder, FileText, Globe, HardDrive, Settings, Search, Eye, Link2, Unlink
+  Folder, FileText, Globe, HardDrive, Settings, Search, Eye, Link2, Unlink, PanelTop
 } from 'lucide-react';
 
 // ============ Utility Functions ============
@@ -945,6 +945,14 @@ const App: React.FC = () => {
           <div className="flex items-center justify-between px-6 py-3">
             <Logo size="md" />
             <div className="flex items-center gap-3">
+              {/* Quick Menu Bar Toggle */}
+              <button
+                onClick={() => setShowMenuBar(!showMenuBar)}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title={showMenuBar ? 'Hide menu bar' : 'Show menu bar'}
+              >
+                <PanelTop size={18} className={showMenuBar ? 'text-blue-500' : 'text-gray-400'} />
+              </button>
               <ThemeToggle theme={theme} setTheme={setTheme} />
               {isConnected && (
                 <button onClick={disconnectFromFtp} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-2">
@@ -954,6 +962,17 @@ const App: React.FC = () => {
             </div>
           </div>
         </header>
+      )}
+
+      {/* Floating button to show header when hidden */}
+      {!showMenuBar && (
+        <button
+          onClick={() => setShowMenuBar(true)}
+          className="fixed top-2 left-2 z-40 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          title="Show menu bar"
+        >
+          <PanelTop size={18} />
+        </button>
       )}
 
       <main className="flex-1 p-6 overflow-auto">
