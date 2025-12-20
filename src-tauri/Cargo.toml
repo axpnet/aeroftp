@@ -32,6 +32,7 @@ tracing-subscriber = "0.3"
 dirs = "5"
 chrono = "0.4"
 base64 = "0.22"
+portable-pty = "0.8"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

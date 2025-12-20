@@ -10,8 +10,10 @@ use tokio::sync::Mutex;
 use tracing::info;
 
 mod ftp;
+mod pty;
 
 use ftp::{FtpManager, RemoteFile};
+use pty::{create_pty_state, spawn_shell, pty_write, pty_read, pty_resize, pty_close, PtyState};
 
 // Shared application state
 struct AppState {
@@ -732,6 +734,7 @@ pub fn run() {
             let _ = app.emit("menu-event", id);
         })
         .manage(AppState::new())
+        .manage(create_pty_state())
         .invoke_handler(tauri::generate_handler![
             connect_ftp,
             disconnect_ftp,
@@ -754,7 +757,12 @@ pub fn run() {
             preview_remote_file,
             save_local_file,
             save_remote_file,
-            toggle_menu_bar
+            toggle_menu_bar,
+            spawn_shell,
+            pty_write,
+            pty_read,
+            pty_resize,
+            pty_close
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

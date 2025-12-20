@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { Terminal as TerminalIcon, Settings } from 'lucide-react';
+import { Terminal as TerminalIcon, Play, Square, RotateCcw } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import 'xterm/css/xterm.css';
 
 interface SSHTerminalProps {
@@ -17,10 +18,13 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
     const terminalRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<XTerm | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
-    const [isTerminalReady, setIsTerminalReady] = useState(false);
+    const readIntervalRef = useRef<number | null>(null);
+    const [isConnected, setIsConnected] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false);
 
+    // Initialize xterm.js
     useEffect(() => {
-        if (!terminalRef.current) return;
+        if (!terminalRef.current || xtermRef.current) return;
 
         const xterm = new XTerm({
             theme: {
@@ -59,61 +63,194 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
         xterm.loadAddon(fitAddon);
         xterm.loadAddon(webLinksAddon);
         xterm.open(terminalRef.current);
-        fitAddon.fit();
+
+        setTimeout(() => fitAddon.fit(), 10);
 
         xtermRef.current = xterm;
         fitAddonRef.current = fitAddon;
 
-        // Welcome message - Local Terminal
+        // Welcome message
         xterm.writeln('\x1b[1;35m╔════════════════════════════════════════╗\x1b[0m');
         xterm.writeln('\x1b[1;35m║\x1b[0m   \x1b[1;36mAeroFTP Terminal\x1b[0m                     \x1b[1;35m║\x1b[0m');
         xterm.writeln('\x1b[1;35m╚════════════════════════════════════════╝\x1b[0m');
         xterm.writeln('');
-        xterm.writeln('\x1b[32m✓\x1b[0m Terminal UI ready (xterm.js)');
-        xterm.writeln('\x1b[33m⏳\x1b[0m Shell integration coming soon');
+        xterm.writeln('\x1b[90mClick "Start" to launch your shell.\x1b[0m');
         xterm.writeln('');
-        xterm.writeln('\x1b[90mPlanned features:\x1b[0m');
-        xterm.writeln('  \x1b[36m•\x1b[0m Local shell (bash/zsh/powershell)');
-        xterm.writeln('  \x1b[36m•\x1b[0m SSH to remote servers (configurable)');
-        xterm.writeln('  \x1b[36m•\x1b[0m Quick commands for file operations');
-        xterm.writeln('');
-        xterm.writeln(`\x1b[90mCurrent directory:\x1b[0m \x1b[36m${localPath}\x1b[0m`);
-        xterm.writeln('');
-        xterm.write('\x1b[1;32maero@ftp\x1b[0m:\x1b[1;34m~\x1b[0m$ ');
 
-        setIsTerminalReady(true);
+        // Handle keystrokes - send to PTY
+        xterm.onData(async (data) => {
+            if (isConnected) {
+                try {
+                    await invoke('pty_write', { data });
+                } catch (e) {
+                    console.error('PTY write error:', e);
+                }
+            }
+        });
 
-        const handleResize = () => fitAddonRef.current?.fit();
+        // Handle resize
+        const handleResize = () => {
+            if (fitAddonRef.current) {
+                fitAddonRef.current.fit();
+                // Notify PTY of resize
+                if (isConnected && xtermRef.current) {
+                    const dims = fitAddonRef.current.proposeDimensions();
+                    if (dims) {
+                        invoke('pty_resize', { rows: dims.rows, cols: dims.cols }).catch(console.error);
+                    }
+                }
+            }
+        };
+
         window.addEventListener('resize', handleResize);
 
         return () => {
             window.removeEventListener('resize', handleResize);
+            if (readIntervalRef.current) {
+                clearInterval(readIntervalRef.current);
+            }
             xterm.dispose();
         };
-    }, [localPath]);
+    }, []);
 
+    // Read loop - reads PTY output and writes to xterm
+    const startReadLoop = useCallback(() => {
+        if (readIntervalRef.current) return;
+
+        readIntervalRef.current = window.setInterval(async () => {
+            if (!xtermRef.current) return;
+
+            try {
+                const output = await invoke<string>('pty_read');
+                if (output && output.length > 0) {
+                    xtermRef.current.write(output);
+                }
+            } catch (e) {
+                // Ignore read errors (may be no data)
+            }
+        }, 50); // Poll every 50ms
+    }, []);
+
+    const stopReadLoop = useCallback(() => {
+        if (readIntervalRef.current) {
+            clearInterval(readIntervalRef.current);
+            readIntervalRef.current = null;
+        }
+    }, []);
+
+    // Start shell
+    const startShell = async () => {
+        if (isConnecting || isConnected) return;
+
+        setIsConnecting(true);
+
+        try {
+            const result = await invoke<string>('spawn_shell');
+            setIsConnected(true);
+
+            if (xtermRef.current) {
+                xtermRef.current.clear();
+                xtermRef.current.writeln(`\x1b[32m✓ ${result}\x1b[0m`);
+                xtermRef.current.writeln('');
+            }
+
+            // Notify PTY of initial size
+            if (fitAddonRef.current) {
+                const dims = fitAddonRef.current.proposeDimensions();
+                if (dims) {
+                    await invoke('pty_resize', { rows: dims.rows, cols: dims.cols });
+                }
+            }
+
+            // Start reading output
+            startReadLoop();
+
+            // Focus terminal
+            xtermRef.current?.focus();
+
+        } catch (e) {
+            if (xtermRef.current) {
+                xtermRef.current.writeln(`\x1b[31m✗ Error: ${e}\x1b[0m`);
+            }
+        } finally {
+            setIsConnecting(false);
+        }
+    };
+
+    // Stop shell
+    const stopShell = async () => {
+        stopReadLoop();
+
+        try {
+            await invoke('pty_close');
+        } catch (e) {
+            console.error('PTY close error:', e);
+        }
+
+        setIsConnected(false);
+
+        if (xtermRef.current) {
+            xtermRef.current.writeln('');
+            xtermRef.current.writeln('\x1b[33mTerminal closed.\x1b[0m');
+            xtermRef.current.writeln('\x1b[90mClick "Start" to launch a new shell.\x1b[0m');
+        }
+    };
+
+    // Restart shell
+    const restartShell = async () => {
+        await stopShell();
+        setTimeout(startShell, 100);
+    };
+
+    // Re-fit on visibility
     useEffect(() => {
-        if (isTerminalReady && fitAddonRef.current) {
+        if (fitAddonRef.current) {
             setTimeout(() => fitAddonRef.current?.fit(), 50);
         }
-    }, [isTerminalReady]);
+    }, []);
 
     return (
         <div className={`flex flex-col h-full bg-[#1a1b26] ${className}`}>
             <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
                 <div className="flex items-center gap-2 text-sm text-gray-300">
-                    <TerminalIcon size={14} className="text-green-400" />
+                    <TerminalIcon size={14} className={isConnected ? 'text-green-400' : 'text-gray-400'} />
                     <span className="font-medium">Terminal</span>
-                    <span className="text-gray-500 text-xs">• Local Shell</span>
+                    <span className={`text-xs ${isConnected ? 'text-green-400' : 'text-gray-500'}`}>
+                        {isConnected ? '● Connected' : '○ Disconnected'}
+                    </span>
                 </div>
-                <button
-                    disabled
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-700/50 text-gray-500 cursor-not-allowed rounded"
-                    title="Configure SSH (Future feature)"
-                >
-                    <Settings size={12} />
-                    SSH Config
-                </button>
+
+                <div className="flex items-center gap-2">
+                    {!isConnected ? (
+                        <button
+                            onClick={startShell}
+                            disabled={isConnecting}
+                            className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-500 disabled:bg-gray-600 text-white rounded transition-colors"
+                            title="Start shell"
+                        >
+                            <Play size={12} />
+                            {isConnecting ? 'Starting...' : 'Start'}
+                        </button>
+                    ) : (
+                        <>
+                            <button
+                                onClick={restartShell}
+                                className="flex items-center gap-1 px-2 py-1 text-xs bg-yellow-600 hover:bg-yellow-500 text-white rounded transition-colors"
+                                title="Restart shell"
+                            >
+                                <RotateCcw size={12} />
+                            </button>
+                            <button
+                                onClick={stopShell}
+                                className="flex items-center gap-1 px-2 py-1 text-xs bg-red-600 hover:bg-red-500 text-white rounded transition-colors"
+                                title="Stop shell"
+                            >
+                                <Square size={12} />
+                                Stop
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
             <div ref={terminalRef} className="flex-1 p-2 overflow-hidden" />
         </div>
