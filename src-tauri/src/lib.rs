@@ -13,7 +13,7 @@ mod ftp;
 mod pty;
 
 use ftp::{FtpManager, RemoteFile};
-use pty::{create_pty_state, spawn_shell, pty_write, pty_read, pty_resize, pty_close, PtyState};
+use pty::{create_pty_state, spawn_shell, pty_write, pty_resize, pty_close, PtyState};
 
 // Shared application state
 struct AppState {
@@ -760,7 +760,6 @@ pub fn run() {
             toggle_menu_bar,
             spawn_shell,
             pty_write,
-            pty_read,
             pty_resize,
             pty_close
         ])

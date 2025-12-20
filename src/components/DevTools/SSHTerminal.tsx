@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Terminal as TerminalIcon, Play, Square, RotateCcw } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import 'xterm/css/xterm.css';
 
 interface SSHTerminalProps {
@@ -18,9 +19,9 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
     const terminalRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<XTerm | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
-    const readIntervalRef = useRef<number | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
+    const unlistenRef = useRef<UnlistenFn | null>(null);
 
     // Initialize xterm.js
     useEffect(() => {
@@ -106,37 +107,25 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
 
         return () => {
             window.removeEventListener('resize', handleResize);
-            if (readIntervalRef.current) {
-                clearInterval(readIntervalRef.current);
+            if (unlistenRef.current) {
+                unlistenRef.current();
             }
             xterm.dispose();
         };
-    }, []);
+    }, [isConnected]); // Re-bind if connected state changes significantly (though refs handle most)
 
-    // Read loop - reads PTY output and writes to xterm
-    const startReadLoop = useCallback(() => {
-        if (readIntervalRef.current) return;
-
-        readIntervalRef.current = window.setInterval(async () => {
-            if (!xtermRef.current) return;
-
-            try {
-                const output = await invoke<string>('pty_read');
-                if (output && output.length > 0) {
-                    xtermRef.current.write(output);
-                }
-            } catch (e) {
-                // Ignore read errors (may be no data)
-            }
-        }, 50); // Poll every 50ms
-    }, []);
-
-    const stopReadLoop = useCallback(() => {
-        if (readIntervalRef.current) {
-            clearInterval(readIntervalRef.current);
-            readIntervalRef.current = null;
+    // Setup event listener for PTY output
+    const setupListener = async () => {
+        if (unlistenRef.current) {
+            unlistenRef.current();
         }
-    }, []);
+
+        unlistenRef.current = await listen<string>('pty-output', (event) => {
+            if (xtermRef.current) {
+                xtermRef.current.write(event.payload);
+            }
+        });
+    };
 
     // Start shell
     const startShell = async () => {
@@ -145,12 +134,14 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
         setIsConnecting(true);
 
         try {
+            await setupListener();
+
             const result = await invoke<string>('spawn_shell');
             setIsConnected(true);
 
             if (xtermRef.current) {
                 xtermRef.current.clear();
-                xtermRef.current.writeln(`\x1b[32m✓ ${result}\x1b[0m`);
+                // xtermRef.current.writeln(`\x1b[32m✓ ${result}\x1b[0m`); // Optional success message
                 xtermRef.current.writeln('');
             }
 
@@ -161,9 +152,6 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
                     await invoke('pty_resize', { rows: dims.rows, cols: dims.cols });
                 }
             }
-
-            // Start reading output
-            startReadLoop();
 
             // Focus terminal
             xtermRef.current?.focus();
@@ -179,7 +167,10 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
 
     // Stop shell
     const stopShell = async () => {
-        stopReadLoop();
+        if (unlistenRef.current) {
+            unlistenRef.current();
+            unlistenRef.current = null;
+        }
 
         try {
             await invoke('pty_close');
@@ -199,7 +190,7 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
     // Restart shell
     const restartShell = async () => {
         await stopShell();
-        setTimeout(startShell, 100);
+        setTimeout(startShell, 500); // Give a bit more time for cleanup
     };
 
     // Re-fit on visibility

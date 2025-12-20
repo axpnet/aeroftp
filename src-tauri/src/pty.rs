@@ -4,20 +4,19 @@
 use portable_pty::{native_pty_system, CommandBuilder, PtyPair, PtySize};
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
-use tauri::State;
+use std::thread;
+use tauri::{AppHandle, Emitter, State};
 
 /// Holds the PTY pair (master/slave) for the terminal session
 pub struct PtySession {
     pub pair: Option<PtyPair>,
-    pub reader: Option<Box<dyn Read + Send>>,
     pub writer: Option<Box<dyn Write + Send>>,
 }
 
 impl Default for PtySession {
     fn default() -> Self {
         Self {
-            pair: None,
-            reader: None,
+            pair: None, 
             writer: None,
         }
     }
@@ -33,7 +32,7 @@ pub fn create_pty_state() -> PtyState {
 
 /// Spawn a new shell in the PTY
 #[tauri::command]
-pub fn spawn_shell(pty_state: State<'_, PtyState>) -> Result<String, String> {
+pub fn spawn_shell(app: AppHandle, pty_state: State<'_, PtyState>) -> Result<String, String> {
     let pty_system = native_pty_system();
     
     let pair = pty_system
@@ -70,7 +69,8 @@ pub fn spawn_shell(pty_state: State<'_, PtyState>) -> Result<String, String> {
         .map_err(|e| format!("Failed to spawn shell: {}", e))?;
 
     // Get reader and writer from master
-    let reader = pair
+    // We clone the reader to move it into a separate thread
+    let mut reader = pair
         .master
         .try_clone_reader()
         .map_err(|e| format!("Failed to clone reader: {}", e))?;
@@ -83,8 +83,23 @@ pub fn spawn_shell(pty_state: State<'_, PtyState>) -> Result<String, String> {
     // Store in state
     let mut session = pty_state.lock().map_err(|_| "Lock error")?;
     session.pair = Some(pair);
-    session.reader = Some(reader);
     session.writer = Some(writer);
+
+    // Spawn a thread to read valid output from the PTY and emit it to the frontend
+    // This avoids blocking the main thread or locking the state during read
+    thread::spawn(move || {
+        let mut buffer = [0u8; 1024];
+        loop {
+            match reader.read(&mut buffer) {
+                Ok(0) => break, // EOF
+                Ok(n) => {
+                    let output = String::from_utf8_lossy(&buffer[..n]).to_string();
+                    let _ = app.emit("pty-output", output);
+                }
+                Err(_) => break, // Error or closed
+            }
+        }
+    });
 
     Ok(format!("Shell started: {}", shell))
 }
@@ -98,35 +113,14 @@ pub fn pty_write(pty_state: State<'_, PtyState>, data: String) -> Result<(), Str
         writer
             .write_all(data.as_bytes())
             .map_err(|e| format!("Write error: {}", e))?;
-        writer.flush().map_err(|e| format!("Flush error: {}", e))?;
+        // writer.flush().map_err(|e| format!("Flush error: {}", e))?; // Flush might not be needed/supported on all PTYs
         Ok(())
     } else {
         Err("No active PTY session".to_string())
     }
 }
 
-/// Read data from the PTY (get shell output)
-#[tauri::command]
-pub fn pty_read(pty_state: State<'_, PtyState>) -> Result<String, String> {
-    let mut session = pty_state.lock().map_err(|_| "Lock error")?;
-    
-    if let Some(ref mut reader) = session.reader {
-        let mut buffer = [0u8; 4096];
-        
-        // Non-blocking read attempt
-        match reader.read(&mut buffer) {
-            Ok(0) => Ok(String::new()), // No data
-            Ok(n) => {
-                let output = String::from_utf8_lossy(&buffer[..n]).to_string();
-                Ok(output)
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => Ok(String::new()),
-            Err(e) => Err(format!("Read error: {}", e)),
-        }
-    } else {
-        Err("No active PTY session".to_string())
-    }
-}
+// NOTE: pty_read is no longer needed as we use event emission
 
 /// Resize the PTY
 #[tauri::command]
@@ -153,8 +147,9 @@ pub fn pty_resize(pty_state: State<'_, PtyState>, rows: u16, cols: u16) -> Resul
 pub fn pty_close(pty_state: State<'_, PtyState>) -> Result<(), String> {
     let mut session = pty_state.lock().map_err(|_| "Lock error")?;
     
+    // Dropping the pair should close the master/slave and terminate the shell
+    // This will also cause the read thread to hit EOF or error and exit
     session.pair = None;
-    session.reader = None;
     session.writer = None;
     
     Ok(())
