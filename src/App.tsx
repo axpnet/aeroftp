@@ -20,6 +20,7 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { StatusBar } from './components/StatusBar';
 import { UploadQueue, useUploadQueue } from './components/UploadQueue';
 import { CustomTitlebar } from './components/CustomTitlebar';
+import { DevToolsPanel, PreviewFile, isPreviewable } from './components/DevTools';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import {
   Sun, Moon, Monitor, FolderUp, RefreshCw, FolderPlus, FolderOpen,
@@ -277,11 +278,14 @@ const App: React.FC = () => {
   // Upload Queue
   const uploadQueue = useUploadQueue();
 
-  // Search Filters
   const [localSearchFilter, setLocalSearchFilter] = useState('');
   const [showLocalPreview, setShowLocalPreview] = useState(false);
   const [previewFile, setPreviewFile] = useState<LocalFile | null>(null);
   const [previewImageBase64, setPreviewImageBase64] = useState<string | null>(null);
+
+  // DevTools Panel
+  const [devToolsOpen, setDevToolsOpen] = useState(false);
+  const [devToolsPreviewFile, setDevToolsPreviewFile] = useState<PreviewFile | null>(null);
 
   // Load image preview as base64 when file changes
   useEffect(() => {
@@ -658,6 +662,35 @@ const App: React.FC = () => {
   };
 
   const cancelTransfer = async () => { try { await invoke('cancel_transfer'); } catch { } };
+
+  // Open DevTools with file preview
+  const openDevToolsPreview = async (file: RemoteFile | LocalFile, isRemote: boolean) => {
+    try {
+      let content = '';
+
+      if (isRemote) {
+        // For remote files, download content to memory
+        const remotePath = (file as RemoteFile).path;
+        content = await invoke<string>('preview_remote_file', { path: remotePath });
+      } else {
+        // For local files, read content
+        const localPath = (file as LocalFile).path;
+        content = await invoke<string>('read_local_file', { path: localPath });
+      }
+
+      setDevToolsPreviewFile({
+        name: file.name,
+        path: isRemote ? (file as RemoteFile).path : (file as LocalFile).path,
+        content,
+        mimeType: 'text/plain',  // Could be improved
+        size: file.size || 0,
+        isRemote,
+      });
+      setDevToolsOpen(true);
+    } catch (error) {
+      toast.error('Preview Failed', String(error));
+    }
+  };
 
   // Upload files (Selected or Dialog)
   const uploadMultipleFiles = async (filesOverride?: string[]) => {
@@ -1304,6 +1337,15 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* DevTools Panel */}
+      <DevToolsPanel
+        isOpen={devToolsOpen}
+        previewFile={devToolsPreviewFile}
+        onClose={() => setDevToolsOpen(false)}
+        onToggle={() => setDevToolsOpen(!devToolsOpen)}
+      />
+
       <StatusBar
         isConnected={isConnected}
         serverInfo={isConnected ? `${connectionParams.username}@${connectionParams.server}` : undefined}

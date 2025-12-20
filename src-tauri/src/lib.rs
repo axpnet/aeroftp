@@ -569,6 +569,53 @@ async fn read_file_base64(path: String) -> Result<String, String> {
     Ok(STANDARD.encode(data))
 }
 
+// ============ DevTools Commands ============
+
+#[tauri::command]
+async fn read_local_file(path: String) -> Result<String, String> {
+    // Read local file content as UTF-8 string
+    let content = tokio::fs::read_to_string(&path)
+        .await
+        .map_err(|e| format!("Failed to read file: {}", e))?;
+    
+    Ok(content)
+}
+
+#[tauri::command]
+async fn preview_remote_file(state: State<'_, AppState>, path: String) -> Result<String, String> {
+    let mut ftp_manager = state.ftp_manager.lock().await;
+    
+    // Download file content to memory (limit to 1MB for preview)
+    let max_size: u64 = 1024 * 1024; // 1MB limit
+    
+    // Get file size first
+    let file_size = ftp_manager.get_file_size(&path)
+        .await
+        .unwrap_or(0);
+    
+    if file_size > max_size {
+        return Err(format!("File too large for preview ({} KB). Max: 1024 KB", file_size / 1024));
+    }
+    
+    // Download to temp and read
+    let temp_path = std::env::temp_dir().join(format!("aeroftp_preview_{}", chrono::Utc::now().timestamp_millis()));
+    let temp_path_str = temp_path.to_string_lossy().to_string();
+    
+    ftp_manager.download_file_with_progress(&path, &temp_path_str, |_| {})
+        .await
+        .map_err(|e| format!("Failed to download for preview: {}", e))?;
+    
+    // Read content
+    let content = tokio::fs::read_to_string(&temp_path)
+        .await
+        .map_err(|e| format!("Failed to read preview content: {}", e))?;
+    
+    // Clean up temp file
+    let _ = tokio::fs::remove_file(&temp_path).await;
+    
+    Ok(content)
+}
+
 #[tauri::command]
 fn toggle_menu_bar(app: AppHandle, window: tauri::Window, visible: bool) {
     if visible {
@@ -681,6 +728,8 @@ pub fn run() {
             rename_local_file,
             create_local_folder,
             read_file_base64,
+            read_local_file,
+            preview_remote_file,
             toggle_menu_bar
         ])
         .run(tauri::generate_context!())
