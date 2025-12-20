@@ -1184,7 +1184,7 @@ const App: React.FC = () => {
               {/* Remote */}
               <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 flex flex-col">
                 <div className="px-3 py-2 bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 text-sm font-medium truncate flex items-center gap-2">
-                  <Globe size={14} /> {currentRemotePath}
+                  <Globe size={14} className={isSyncNavigation ? 'text-purple-500' : 'text-green-500'} /> {currentRemotePath}
                 </div>
                 <div className="flex-1 overflow-auto">
                   <table className="w-full">
@@ -1196,6 +1196,20 @@ const App: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {/* Go Up Row */}
+                      {currentRemotePath !== '/' && (
+                        <tr
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                          onDoubleClick={() => changeRemoteDirectory('..')}
+                        >
+                          <td className="px-4 py-2 flex items-center gap-2 text-gray-500">
+                            <FolderUp size={16} />
+                            <span className="italic">Go up</span>
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-400">—</td>
+                          <td className="px-4 py-2 text-sm text-gray-400">—</td>
+                        </tr>
+                      )}
                       {sortedRemoteFiles.map((file, i) => (
                         <tr
                           key={file.name}
@@ -1235,7 +1249,7 @@ const App: React.FC = () => {
               {/* Local */}
               <div className={`${showLocalPreview ? 'w-1/3' : 'w-1/2'} flex flex-col transition-all duration-300`}>
                 <div className="px-3 py-2 bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 text-sm font-medium truncate flex items-center gap-2">
-                  <HardDrive size={14} />
+                  <HardDrive size={14} className={isSyncNavigation ? 'text-purple-500' : 'text-blue-500'} />
                   <span className="truncate flex-1">{currentLocalPath}</span>
                 </div>
                 <div className="flex-1 overflow-auto">
@@ -1248,6 +1262,20 @@ const App: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {/* Go Up Row */}
+                      {currentLocalPath !== '/' && (
+                        <tr
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                          onDoubleClick={() => changeLocalDirectory(currentLocalPath.split('/').slice(0, -1).join('/') || '/')}
+                        >
+                          <td className="px-4 py-2 flex items-center gap-2 text-gray-500">
+                            <FolderUp size={16} />
+                            <span className="italic">Go up</span>
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-400">—</td>
+                          <td className="px-4 py-2 text-sm text-gray-400">—</td>
+                        </tr>
+                      )}
                       {sortedLocalFiles.map((file, i) => (
                         <tr
                           key={file.name}

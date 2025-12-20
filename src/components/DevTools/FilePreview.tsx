@@ -2,10 +2,15 @@ import React, { useEffect, useMemo } from 'react';
 import Prism from 'prismjs';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, Image as ImageIcon, Code, FileCode } from 'lucide-react';
+import { FileText, Image as ImageIcon, FileCode } from 'lucide-react';
 import { PreviewFile, getFileLanguage, isImageFile, isMarkdownFile } from './types';
 
-// Import Prism languages
+// Import Prism core languages first (required for PHP)
+import 'prismjs/components/prism-markup';
+import 'prismjs/components/prism-clike';
+import 'prismjs/components/prism-markup-templating';
+
+// Import other Prism languages
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-jsx';
@@ -21,7 +26,7 @@ import 'prismjs/components/prism-sql';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-rust';
 
-// Prism theme (we'll add CSS separately)
+// Prism theme
 import 'prismjs/themes/prism-tomorrow.css';
 
 interface FilePreviewProps {
