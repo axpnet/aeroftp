@@ -22,14 +22,37 @@
 
 ## ✨ Features
 
+### Core
 - 🚀 **Lightning Fast** - Built with Rust for maximum performance
 - 🎨 **Beautiful UI** - Apple-inspired design with glass morphism effects
 - 🌙 **Dark Mode** - Full dark mode support with smooth transitions
 - 📁 **Dual Panel** - Remote and local file browsing side by side
 - 🔒 **Secure** - Supports FTPS (FTP over TLS)
-- ⚡ **Async** - Non-blocking file transfers
-- 🔍 **Search** - Quick file search functionality
+- ⚡ **Async** - Non-blocking file transfers with progress tracking
 - 💾 **Profiles** - Save your favorite server connections
+- 🔗 **Sync Navigation** - Keep remote/local directories in sync
+
+### DevTools Panel 🛠️
+AeroFTP includes an integrated DevTools panel (like Chrome DevTools) for web developers:
+
+| Tab          | Feature                                     | Status   |
+| ------------ | ------------------------------------------- | -------- |
+| **Preview**  | Syntax-highlighted file preview             | ✅ Active |
+| **Editor**   | Monaco Editor (VS Code) with inline editing | ✅ Active |
+| **Terminal** | SSH Terminal                                | 🔜 Coming |
+
+#### Editor Features
+- Full **Monaco Editor** (same as VS Code)
+- **Syntax highlighting** for 20+ languages
+- **Tokyo Night** 🌃 theme (in honor of Antigravity)
+- **Save** directly to server (auto-upload on save)
+- **Reset** to undo changes
+- Minimap, line numbers, folding, bracket colorization
+
+### Multi-Session Tabs
+- Open multiple server connections as tabs
+- Instant tab switching with cached file lists
+- Background reconnection
 
 ## 📸 Screenshots
 
@@ -83,6 +106,14 @@ npm run tauri build
 3. **Click Connect**
 4. **Browse and transfer files!**
 
+### Using DevTools
+
+1. **Right-click** on any file → "Preview"
+2. DevTools panel opens at the bottom
+3. Switch to **Editor** tab for inline editing
+4. Edit code with Monaco Editor
+5. Click **Save** to upload changes
+
 ### Keyboard Shortcuts
 
 | Key         | Action            |
@@ -101,6 +132,7 @@ npm run tauri build
 - **Frontend**: React + TypeScript
 - **Styling**: TailwindCSS
 - **FTP**: suppaftp crate
+- **Editor**: Monaco Editor (VS Code)
 - **Icons**: Lucide React
 
 ## 🤝 Contributing

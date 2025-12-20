@@ -1,7 +1,44 @@
-import React, { useRef, useState } from 'react';
-import Editor, { OnMount } from '@monaco-editor/react';
-import { Save, X, RotateCcw, FileCode } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import Editor, { OnMount, loader } from '@monaco-editor/react';
+import { Save, X, RotateCcw, FileCode, Palette } from 'lucide-react';
 import { PreviewFile, getFileLanguage } from './types';
+
+// Tokyo Night theme colors - in honor of Antigravity! 🌃
+const tokyoNightTheme = {
+    base: 'vs-dark' as const,
+    inherit: true,
+    rules: [
+        { token: 'comment', foreground: '565f89', fontStyle: 'italic' },
+        { token: 'keyword', foreground: '9d7cd8' },
+        { token: 'string', foreground: '9ece6a' },
+        { token: 'number', foreground: 'ff9e64' },
+        { token: 'type', foreground: '2ac3de' },
+        { token: 'function', foreground: '7aa2f7' },
+        { token: 'variable', foreground: 'c0caf5' },
+        { token: 'constant', foreground: 'ff9e64' },
+        { token: 'tag', foreground: 'f7768e' },
+        { token: 'attribute.name', foreground: '73daca' },
+        { token: 'attribute.value', foreground: '9ece6a' },
+        { token: 'delimiter', foreground: '89ddff' },
+        { token: 'operator', foreground: '89ddff' },
+    ],
+    colors: {
+        'editor.background': '#1a1b26',
+        'editor.foreground': '#c0caf5',
+        'editorLineNumber.foreground': '#3b4261',
+        'editorLineNumber.activeForeground': '#737aa2',
+        'editor.selectionBackground': '#33467c',
+        'editor.lineHighlightBackground': '#1e2030',
+        'editorCursor.foreground': '#c0caf5',
+        'editorWhitespace.foreground': '#3b4261',
+        'editorIndentGuide.background': '#3b4261',
+        'editor.selectionHighlightBackground': '#3d59a1',
+        'editorBracketMatch.background': '#3d59a166',
+        'editorBracketMatch.border': '#3d59a1',
+    },
+};
+
+type EditorTheme = 'vs-dark' | 'tokyo-night';
 
 interface CodeEditorProps {
     file: PreviewFile | null;
@@ -17,16 +54,32 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     className = '',
 }) => {
     const editorRef = useRef<any>(null);
+    const monacoRef = useRef<any>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
     const [originalContent, setOriginalContent] = useState('');
+    const [theme, setTheme] = useState<EditorTheme>('tokyo-night');
+    const [showThemeMenu, setShowThemeMenu] = useState(false);
 
     const handleEditorDidMount: OnMount = (editor, monaco) => {
         editorRef.current = editor;
+        monacoRef.current = monaco;
+
+        // Define Tokyo Night theme
+        monaco.editor.defineTheme('tokyo-night', tokyoNightTheme);
+        monaco.editor.setTheme(theme);
+
         if (file) {
             setOriginalContent(file.content);
         }
     };
+
+    // Apply theme when changed
+    useEffect(() => {
+        if (monacoRef.current) {
+            monacoRef.current.editor.setTheme(theme);
+        }
+    }, [theme]);
 
     const handleChange = (value: string | undefined) => {
         if (value !== undefined && value !== originalContent) {
@@ -74,6 +127,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         return map[lang] || lang;
     };
 
+    const themes: { id: EditorTheme; name: string; icon: string }[] = [
+        { id: 'tokyo-night', name: 'Tokyo Night 🌃', icon: '🌃' },
+        { id: 'vs-dark', name: 'VS Dark', icon: '🌑' },
+    ];
+
     if (!file) {
         return (
             <div className={`flex flex-col items-center justify-center h-full text-gray-400 ${className}`}>
@@ -96,6 +154,32 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* Theme Selector */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowThemeMenu(!showThemeMenu)}
+                            className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                            title="Change theme"
+                        >
+                            <Palette size={12} />
+                            {themes.find(t => t.id === theme)?.icon}
+                        </button>
+                        {showThemeMenu && (
+                            <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-10 py-1 min-w-[140px]">
+                                {themes.map((t) => (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => { setTheme(t.id); setShowThemeMenu(false); }}
+                                        className={`w-full px-3 py-1.5 text-left text-xs hover:bg-gray-700 flex items-center gap-2 ${theme === t.id ? 'text-blue-400' : 'text-gray-300'}`}
+                                    >
+                                        <span>{t.icon}</span>
+                                        <span>{t.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     <button
                         onClick={handleReset}
                         disabled={!hasChanges}
@@ -130,7 +214,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     height="100%"
                     language={monacoLanguage(language)}
                     value={file.content}
-                    theme="vs-dark"
+                    theme={theme}
                     onMount={handleEditorDidMount}
                     onChange={handleChange}
                     options={{
@@ -156,3 +240,4 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 };
 
 export default CodeEditor;
+

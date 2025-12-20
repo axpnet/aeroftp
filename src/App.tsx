@@ -497,6 +497,9 @@ const App: React.FC = () => {
       // Close all session tabs on disconnect
       setSessions([]);
       setActiveSessionId(null);
+      // Close DevTools panel and clear preview
+      setDevToolsOpen(false);
+      setDevToolsPreviewFile(null);
       toast.info('Disconnected', 'Disconnected from server');
     } catch (error) {
       toast.error('Error', `Disconnection failed: ${error}`);
