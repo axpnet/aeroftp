@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Code, Terminal, Edit3, ChevronDown, ChevronUp, X, Maximize2, Minimize2, MessageSquare } from 'lucide-react';
+import { Code, Terminal, Edit3, ChevronDown, ChevronUp, X, Maximize2, Minimize2, MessageSquare, FileX } from 'lucide-react';
 import { DevToolsTab, PreviewFile } from './types';
 import { FilePreview } from './FilePreview';
 import { CodeEditor } from './CodeEditor';
@@ -12,6 +12,7 @@ interface DevToolsPanelProps {
     onClose: () => void;
     onToggle: () => void;
     onSaveFile?: (content: string, file: PreviewFile) => Promise<void>;
+    onClearPreview?: () => void;
 }
 
 const DEFAULT_HEIGHT = 300;
@@ -24,6 +25,7 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
     onClose,
     onToggle,
     onSaveFile,
+    onClearPreview,
 }) => {
     const [activeTab, setActiveTab] = useState<DevToolsTab>('preview');
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
@@ -122,6 +124,16 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1">
+                    {/* Clear File Button */}
+                    {previewFile && onClearPreview && (
+                        <button
+                            onClick={onClearPreview}
+                            className="p-1 hover:bg-gray-700 rounded transition-colors text-gray-400 hover:text-white"
+                            title="Clear current file"
+                        >
+                            <FileX size={14} />
+                        </button>
+                    )}
                     <button
                         onClick={toggleMaximize}
                         className="p-1 hover:bg-gray-700 rounded transition-colors"

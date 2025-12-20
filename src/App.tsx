@@ -1376,6 +1376,7 @@ const App: React.FC = () => {
         previewFile={devToolsPreviewFile}
         onClose={() => setDevToolsOpen(false)}
         onToggle={() => setDevToolsOpen(!devToolsOpen)}
+        onClearPreview={() => setDevToolsPreviewFile(null)}
         onSaveFile={async (content, file) => {
           try {
             if (file.isRemote) {

@@ -7,7 +7,7 @@ interface AboutDialogProps {
 }
 
 // Get version from package.json (injected at build time)
-const APP_VERSION = '0.3.0';
+const APP_VERSION = '0.3.1';
 
 export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
@@ -109,6 +109,9 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                     <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
                         <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
                             Made with <Heart size={12} className="text-red-500" /> by AxpDev
+                        </p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                            AI-Assisted: Claude Opus 4 (Antigravity) • Gemini Pro
                         </p>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                             © 2025 All rights reserved
