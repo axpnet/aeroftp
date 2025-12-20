@@ -32,7 +32,7 @@ pub fn create_pty_state() -> PtyState {
 
 /// Spawn a new shell in the PTY
 #[tauri::command]
-pub fn spawn_shell(app: AppHandle, pty_state: State<'_, PtyState>) -> Result<String, String> {
+pub fn spawn_shell(app: AppHandle, pty_state: State<'_, PtyState>, cwd: Option<String>) -> Result<String, String> {
     let pty_system = native_pty_system();
     
     let pair = pty_system
@@ -57,9 +57,11 @@ pub fn spawn_shell(app: AppHandle, pty_state: State<'_, PtyState>) -> Result<Str
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     
-    // Get current working directory
-    if let Ok(cwd) = std::env::current_dir() {
-        cmd.cwd(cwd);
+    // Set working directory
+    if let Some(path) = cwd {
+        cmd.cwd(path);
+    } else if let Ok(current) = std::env::current_dir() {
+        cmd.cwd(current);
     }
 
     // Spawn the shell
@@ -87,6 +89,7 @@ pub fn spawn_shell(app: AppHandle, pty_state: State<'_, PtyState>) -> Result<Str
 
     // Spawn a thread to read valid output from the PTY and emit it to the frontend
     // This avoids blocking the main thread or locking the state during read
+    let app_clone = app.clone(); // Clone app handle for thread
     thread::spawn(move || {
         let mut buffer = [0u8; 1024];
         loop {
@@ -94,7 +97,7 @@ pub fn spawn_shell(app: AppHandle, pty_state: State<'_, PtyState>) -> Result<Str
                 Ok(0) => break, // EOF
                 Ok(n) => {
                     let output = String::from_utf8_lossy(&buffer[..n]).to_string();
-                    let _ = app.emit("pty-output", output);
+                    let _ = app_clone.emit("pty-output", output);
                 }
                 Err(_) => break, // Error or closed
             }

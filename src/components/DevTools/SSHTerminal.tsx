@@ -25,7 +25,13 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
 
     // Initialize xterm.js
     useEffect(() => {
-        if (!terminalRef.current || xtermRef.current) return;
+        if (!terminalRef.current) return;
+
+        // Cleanup previous instance if exists
+        if (xtermRef.current) {
+            xtermRef.current.dispose();
+            xtermRef.current = null;
+        }
 
         const xterm = new XTerm({
             theme: {
@@ -65,7 +71,11 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
         xterm.loadAddon(webLinksAddon);
         xterm.open(terminalRef.current);
 
-        setTimeout(() => fitAddon.fit(), 10);
+        // IMPORTANT: Fit must be called after a slight delay to ensure container is rendered
+        setTimeout(() => {
+            fitAddon.fit();
+            console.log('PTY: Initial fit complete');
+        }, 100);
 
         xtermRef.current = xterm;
         fitAddonRef.current = fitAddon;
@@ -89,18 +99,20 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
             }
         });
 
-        // Handle resize
+        // Handle resize with debounce
+        let resizeTimeout: number;
         const handleResize = () => {
-            if (fitAddonRef.current) {
-                fitAddonRef.current.fit();
-                // Notify PTY of resize
-                if (isConnected && xtermRef.current) {
+            if (resizeTimeout) window.clearTimeout(resizeTimeout);
+            resizeTimeout = window.setTimeout(() => {
+                if (fitAddonRef.current && isConnected) {
+                    fitAddonRef.current.fit();
                     const dims = fitAddonRef.current.proposeDimensions();
                     if (dims) {
+                        console.log('PTY: Resizing to', dims);
                         invoke('pty_resize', { rows: dims.rows, cols: dims.cols }).catch(console.error);
                     }
                 }
-            }
+            }, 100);
         };
 
         window.addEventListener('resize', handleResize);
@@ -111,8 +123,9 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
                 unlistenRef.current();
             }
             xterm.dispose();
+            xtermRef.current = null;
         };
-    }, [isConnected]); // Re-bind if connected state changes significantly (though refs handle most)
+    }, []); // Only run once on mount (removed isConnected dep to avoid re-init)
 
     // Setup event listener for PTY output
     const setupListener = async () => {
@@ -120,11 +133,15 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
             unlistenRef.current();
         }
 
-        unlistenRef.current = await listen<string>('pty-output', (event) => {
-            if (xtermRef.current) {
-                xtermRef.current.write(event.payload);
-            }
-        });
+        try {
+            unlistenRef.current = await listen<string>('pty-output', (event) => {
+                if (xtermRef.current) {
+                    xtermRef.current.write(event.payload);
+                }
+            });
+        } catch (e) {
+            console.error('PTY: Failed to setup listener:', e);
+        }
     };
 
     // Start shell
@@ -132,16 +149,21 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
         if (isConnecting || isConnected) return;
 
         setIsConnecting(true);
+        console.log('PTY: Starting shell in:', localPath);
 
         try {
             await setupListener();
 
-            const result = await invoke<string>('spawn_shell');
+            // Pass localPath as cwd to the backend
+            // If localPath is '~' or empty, backend will use default
+            const cwdToUse = (localPath && localPath !== '~') ? localPath : null;
+
+            const result = await invoke<string>('spawn_shell', { cwd: cwdToUse });
+            console.log('PTY: Shell spawned:', result);
             setIsConnected(true);
 
             if (xtermRef.current) {
                 xtermRef.current.clear();
-                // xtermRef.current.writeln(`\x1b[32m✓ ${result}\x1b[0m`); // Optional success message
                 xtermRef.current.writeln('');
             }
 

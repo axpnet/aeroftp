@@ -1374,6 +1374,7 @@ const App: React.FC = () => {
       <DevToolsPanel
         isOpen={devToolsOpen}
         previewFile={devToolsPreviewFile}
+        localPath={currentLocalPath}
         onClose={() => setDevToolsOpen(false)}
         onToggle={() => setDevToolsOpen(!devToolsOpen)}
         onClearPreview={() => setDevToolsPreviewFile(null)}

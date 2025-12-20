@@ -9,6 +9,7 @@ import { AIChat } from './AIChat';
 interface DevToolsPanelProps {
     isOpen: boolean;
     previewFile: PreviewFile | null;
+    localPath?: string;
     onClose: () => void;
     onToggle: () => void;
     onSaveFile?: (content: string, file: PreviewFile) => Promise<void>;
@@ -22,6 +23,7 @@ const MAX_HEIGHT = 600;
 export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
     isOpen,
     previewFile,
+    localPath,
     onClose,
     onToggle,
     onSaveFile,
@@ -169,7 +171,7 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
                     />
                 )}
                 {activeTab === 'terminal' && (
-                    <SSHTerminal className="h-full" />
+                    <SSHTerminal className="h-full" localPath={localPath} />
                 )}
                 {activeTab === 'chat' && (
                     <AIChat className="h-full" />
