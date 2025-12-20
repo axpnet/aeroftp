@@ -1200,7 +1200,7 @@ const App: React.FC = () => {
                       {currentRemotePath !== '/' && (
                         <tr
                           className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
-                          onDoubleClick={() => changeRemoteDirectory('..')}
+                          onClick={() => changeRemoteDirectory('..')}
                         >
                           <td className="px-4 py-2 flex items-center gap-2 text-gray-500">
                             <FolderUp size={16} />
@@ -1266,7 +1266,7 @@ const App: React.FC = () => {
                       {currentLocalPath !== '/' && (
                         <tr
                           className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
-                          onDoubleClick={() => changeLocalDirectory(currentLocalPath.split('/').slice(0, -1).join('/') || '/')}
+                          onClick={() => changeLocalDirectory(currentLocalPath.split('/').slice(0, -1).join('/') || '/')}
                         >
                           <td className="px-4 py-2 flex items-center gap-2 text-gray-500">
                             <FolderUp size={16} />
