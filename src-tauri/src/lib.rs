@@ -659,7 +659,7 @@ fn toggle_menu_bar(app: AppHandle, window: tauri::Window, visible: bool) {
 pub fn run() {
     use tauri::menu::{Menu, MenuItem, Submenu, PredefinedMenuItem};
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_log::Builder::default()
@@ -735,8 +735,13 @@ pub fn run() {
             // Emit event to frontend
             let _ = app.emit("menu-event", id);
         })
-        .manage(AppState::new())
-        .manage(create_pty_state())
+        .manage(AppState::new());
+
+    // Add PTY state only on Unix systems
+    #[cfg(unix)]
+    let builder = builder.manage(create_pty_state());
+
+    builder
         .invoke_handler(tauri::generate_handler![
             connect_ftp,
             disconnect_ftp,

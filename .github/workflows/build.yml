@@ -9,6 +9,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Required permissions for creating releases
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -37,6 +41,11 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
       - name: Install Linux dependencies
         if: matrix.target == 'linux'
         run: |
@@ -51,28 +60,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: 'AeroFTP ${{ github.ref_name }}'
-          body: |
-            ## AeroFTP Release ${{ github.ref_name }}
-            
-            ✨ **Features:**
-            - Real AeroFTP logos with theme support
-            - Per-project local folders configuration
-            - Navigation sync between remote and local panels
-            
-            📦 **Downloads:**
-            - **Windows**: `.msi` installer or `.exe`
-            - **Linux**: `.deb`, `.rpm`, or `.AppImage`
-          draft: true
-          prerelease: false
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -84,3 +71,48 @@ jobs:
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: ignore
+
+  # Separate job for release creation - only runs on tags
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: aeroftp-linux
+          path: ./artifacts/linux
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: aeroftp-windows
+          path: ./artifacts/windows
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: 'AeroFTP ${{ github.ref_name }}'
+          body: |
+            ## AeroFTP Release ${{ github.ref_name }}
+            
+            ✨ **Features:**
+            - Real AeroFTP logos with theme support
+            - Per-project local folders configuration
+            - Navigation sync between remote and local panels
+            - Integrated DevTools with code editor and terminal
+            
+            📦 **Downloads:**
+            - **Windows**: `.msi` installer or `.exe`
+            - **Linux**: `.deb`, `.rpm`, or `.AppImage`
+          draft: true
+          prerelease: false
+          files: |
+            ./artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
