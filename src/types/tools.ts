@@ -16,7 +16,7 @@ export interface AIToolParameter {
     required: boolean;
 }
 
-export interface ToolCall {
+export interface AgentToolCall {
     id: string;
     toolName: string;
     args: Record<string, unknown>;

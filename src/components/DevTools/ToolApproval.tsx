@@ -1,9 +1,9 @@
 import React from 'react';
 import { Check, X, AlertTriangle, AlertCircle, Info, Loader2, FileText, Folder, Download, Upload, Trash2, Edit3, RefreshCw } from 'lucide-react';
-import { ToolCall, getToolByName, DangerLevel } from '../../types/tools';
+import { AgentToolCall, getToolByName, DangerLevel } from '../../types/tools';
 
 interface ToolApprovalProps {
-    toolCall: ToolCall;
+    toolCall: AgentToolCall;
     onApprove: () => void;
     onReject: () => void;
 }

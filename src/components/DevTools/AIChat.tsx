@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { GeminiIcon, OpenAIIcon, AnthropicIcon } from './AIIcons';
 import { AISettingsPanel } from '../AISettings';
 import { AISettings, AIProviderType, TaskType } from '../../types/ai';
-import { ToolCall, generateToolsPrompt, requiresApproval, getToolByName } from '../../types/tools';
+import { AgentToolCall, generateToolsPrompt, requiresApproval, getToolByName } from '../../types/tools';
 import { ToolApproval } from './ToolApproval';
 
 interface Message {
@@ -58,7 +58,7 @@ export const AIChat: React.FC<AIChatProps> = ({ className = '', remotePath, loca
     const [isListening, setIsListening] = useState(false);
     const [availableModels, setAvailableModels] = useState<SelectedModel[]>([]);
     const [selectedModel, setSelectedModel] = useState<SelectedModel | null>(null);
-    const [pendingToolCall, setPendingToolCall] = useState<ToolCall | null>(null);
+    const [pendingToolCall, setPendingToolCall] = useState<AgentToolCall | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -292,7 +292,7 @@ export const AIChat: React.FC<AIChatProps> = ({ className = '', remotePath, loca
     };
 
     // Execute a tool
-    const executeTool = async (toolCall: ToolCall) => {
+    const executeTool = async (toolCall: AgentToolCall) => {
         const tool = getToolByName(toolCall.toolName);
         if (!tool) {
             setPendingToolCall(null);
@@ -424,7 +424,7 @@ Always explain what you're doing before executing tools.`;
             if (toolParsed) {
                 const tool = getToolByName(toolParsed.tool);
                 if (tool) {
-                    const toolCall: ToolCall = {
+                    const toolCall: AgentToolCall = {
                         id: Date.now().toString(),
                         toolName: toolParsed.tool,
                         args: toolParsed.args,
