@@ -46,10 +46,10 @@ export const ToolApproval: React.FC<ToolApprovalProps> = ({ toolCall, onApprove,
     const dangerLevel = tool?.dangerLevel || 'medium';
     const styles = getDangerStyles(dangerLevel);
 
-    const isExecuting = toolCall.status === 'executing';
-    const isCompleted = toolCall.status === 'completed';
-    const isError = toolCall.status === 'error';
-    const isPending = toolCall.status === 'pending' || toolCall.status === 'approved';
+    const isExecuting: boolean = toolCall.status === 'executing';
+    const isCompleted: boolean = toolCall.status === 'completed';
+    const isError: boolean = toolCall.status === 'error';
+    const isPending: boolean = toolCall.status === 'pending' || toolCall.status === 'approved';
 
     return (
         <div className={`rounded-lg border ${styles.border} ${styles.bg} p-3 my-2`}>
@@ -85,34 +85,33 @@ export const ToolApproval: React.FC<ToolApprovalProps> = ({ toolCall, onApprove,
             </div>
 
             {/* Preview if available */}
-            {toolCall.preview && (
+            {toolCall.preview != null && (
                 <div className="text-xs text-gray-400 mb-2 italic">
-                    Preview: {String(toolCall.preview || '')}
+                    Preview: {String(toolCall.preview)}
                 </div>
             )}
 
-            {/* Status / Actions */}
-            {isExecuting && (
+            {isExecuting ? (
                 <div className="flex items-center gap-2 text-yellow-400 text-sm">
                     <Loader2 size={14} className="animate-spin" />
                     Executing...
                 </div>
-            )}
+            ) : null}
 
-            {isCompleted && (
+            {isCompleted ? (
                 <div className="flex items-center gap-2 text-green-400 text-sm">
                     <Check size={14} />
                     Completed
                 </div>
-            )}
+            ) : null}
 
-            {isError && (
+            {isError ? (
                 <div className="text-red-400 text-sm">
                     ❌ Error: {toolCall.error}
                 </div>
-            )}
+            ) : null}
 
-            {isPending && toolCall.status === 'pending' && (
+            {isPending && toolCall.status === 'pending' ? (
                 <div className="flex gap-2 mt-2">
                     <button
                         onClick={onApprove}
@@ -129,14 +128,13 @@ export const ToolApproval: React.FC<ToolApprovalProps> = ({ toolCall, onApprove,
                         Cancel
                     </button>
                 </div>
-            )}
+            ) : null}
 
-            {/* Result */}
-            {toolCall.result && (
+            {toolCall.result ? (
                 <div className="mt-2 p-2 bg-gray-900/50 rounded text-xs text-gray-300 max-h-32 overflow-auto">
                     <pre className="whitespace-pre-wrap">{typeof toolCall.result === 'string' ? toolCall.result : JSON.stringify(toolCall.result, null, 2)}</pre>
                 </div>
-            )}
+            ) : null}
         </div>
     );
 };
