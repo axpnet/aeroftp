@@ -1,0 +1,94 @@
+name: aeroftp
+version: '0.3.2'
+summary: Fast, Beautiful, Reliable FTP Client built with Tauri
+description: |
+  AeroFTP is a modern FTP client that combines beauty and functionality.
+  
+  **Features:**
+  - 🚀 Fast transfers with real-time progress
+  - 🎨 Beautiful, modern dark/light themes
+  - 📁 Dual-pane file browser (local & remote)
+  - 🔄 File synchronization with conflict detection
+  - 💻 Integrated DevTools (Code Editor, Terminal, AI Chat)
+  - 📜 Multi-session tabs with connection caching
+  - 🔐 Secure connection profiles
+  - ⌨️ Keyboard shortcuts for power users
+  
+  Built with Rust (Tauri) and React/TypeScript for maximum performance.
+
+base: core22
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+
+icon: icons/AeroFTP_simbol_color_512x512.png
+
+apps:
+  aeroftp:
+    command: aeroftp
+    desktop: usr/share/applications/aeroftp.desktop
+    extensions:
+      - gnome
+    plugs:
+      - home
+      - network
+      - network-bind
+      - removable-media
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - unity7
+      - gsettings
+
+parts:
+  aeroftp:
+    plugin: nil
+    source: .
+    build-packages:
+      - curl
+      - wget
+      - libwebkit2gtk-4.1-dev
+      - libappindicator3-dev
+      - librsvg2-dev
+      - patchelf
+      - libssl-dev
+      - build-essential
+      - pkg-config
+    stage-packages:
+      - libwebkit2gtk-4.1-0
+      - libappindicator3-1
+      - librsvg2-2
+      - libayatana-appindicator3-1
+    override-build: |
+      # Install Node.js
+      curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      apt-get install -y nodejs
+      
+      # Install Rust
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      export PATH="$HOME/.cargo/bin:$PATH"
+      
+      # Build the application
+      npm ci
+      npm run tauri build
+      
+      # Install to snap
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/applications
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps
+      
+      # Copy binary
+      cp src-tauri/target/release/aeroftp $SNAPCRAFT_PART_INSTALL/usr/bin/
+      
+      # Copy desktop file
+      cp src-tauri/target/release/bundle/deb/*/data/usr/share/applications/*.desktop $SNAPCRAFT_PART_INSTALL/usr/share/applications/aeroftp.desktop || true
+      
+      # Copy icon
+      cp icons/AeroFTP_simbol_color_512x512.png $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/aeroftp.png
+
+layout:
+  /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/webkit2gtk-4.1:
+    symlink: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/webkit2gtk-4.1

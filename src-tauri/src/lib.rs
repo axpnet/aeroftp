@@ -10,6 +10,8 @@ use tokio::sync::Mutex;
 use tracing::info;
 
 mod ftp;
+mod sync;
+mod ai;
 #[cfg(unix)]
 mod pty;
 
@@ -653,6 +655,390 @@ fn toggle_menu_bar(app: AppHandle, window: tauri::Window, visible: bool) {
     }
 }
 
+// ============ Sync Commands ============
+
+use sync::{
+    CompareOptions, FileComparison, FileInfo, SyncDirection, SyncStatus,
+    build_comparison_results, should_exclude,
+};
+use std::collections::HashMap;
+
+#[tauri::command]
+async fn compare_directories(
+    state: State<'_, AppState>,
+    local_path: String,
+    remote_path: String,
+    options: Option<CompareOptions>,
+) -> Result<Vec<FileComparison>, String> {
+    let options = options.unwrap_or_default();
+    
+    info!("Comparing directories: local={}, remote={}", local_path, remote_path);
+    
+    // Get local files
+    let local_files = get_local_files_recursive(&local_path, &local_path, &options.exclude_patterns)
+        .await
+        .map_err(|e| format!("Failed to scan local directory: {}", e))?;
+    
+    // Get remote files
+    let mut ftp_manager = state.ftp_manager.lock().await;
+    let remote_files = get_remote_files_recursive(&mut ftp_manager, &remote_path, &remote_path, &options.exclude_patterns)
+        .await
+        .map_err(|e| format!("Failed to scan remote directory: {}", e))?;
+    
+    // Build comparison results
+    let results = build_comparison_results(local_files, remote_files, &options);
+    
+    info!("Comparison complete: {} differences found", results.len());
+    
+    Ok(results)
+}
+
+/// Scan local directory iteratively and build file info map
+async fn get_local_files_recursive(
+    base_path: &str,
+    _current_path: &str,
+    exclude_patterns: &[String],
+) -> Result<HashMap<String, FileInfo>, String> {
+    let mut files = HashMap::new();
+    let base = PathBuf::from(base_path);
+    
+    if !base.exists() {
+        return Ok(files);
+    }
+    
+    // Use a stack for iterative traversal instead of recursion
+    let mut dirs_to_process = vec![base.clone()];
+    
+    while let Some(current_dir) = dirs_to_process.pop() {
+        let mut entries = match tokio::fs::read_dir(&current_dir).await {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            
+            // Calculate relative path
+            let relative_path = path
+                .strip_prefix(&base)
+                .map(|p| p.to_string_lossy().to_string().replace('\\', "/"))
+                .unwrap_or_else(|_| name.clone());
+            
+            // Skip excluded paths
+            if should_exclude(&relative_path, exclude_patterns) {
+                continue;
+            }
+            
+            let metadata = entry.metadata().await.ok();
+            let is_dir = metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false);
+            
+            let modified = metadata.as_ref().and_then(|m| {
+                m.modified().ok().map(|t| {
+                    let datetime: chrono::DateTime<chrono::Utc> = t.into();
+                    datetime
+                })
+            });
+            
+            let size = if is_dir {
+                0
+            } else {
+                metadata.as_ref().map(|m| m.len()).unwrap_or(0)
+            };
+            
+            let file_info = FileInfo {
+                name: name.clone(),
+                path: path.to_string_lossy().to_string(),
+                size,
+                modified,
+                is_dir,
+                checksum: None,
+            };
+            
+            files.insert(relative_path, file_info);
+            
+            // Add subdirectories to process
+            if is_dir {
+                dirs_to_process.push(path);
+            }
+        }
+    }
+    
+    Ok(files)
+}
+
+/// Scan remote directory iteratively and build file info map
+async fn get_remote_files_recursive(
+    ftp_manager: &mut ftp::FtpManager,
+    base_path: &str,
+    _current_path: &str,
+    exclude_patterns: &[String],
+) -> Result<HashMap<String, FileInfo>, String> {
+    let mut files = HashMap::new();
+    
+    // Use a stack for iterative traversal
+    let mut dirs_to_process = vec![base_path.to_string()];
+    
+    while let Some(current_dir) = dirs_to_process.pop() {
+        // Change to the directory
+        if let Err(e) = ftp_manager.change_dir(&current_dir).await {
+            info!("Warning: Could not change to directory {}: {}", current_dir, e);
+            continue;
+        }
+        
+        // List files
+        let entries = match ftp_manager.list_files().await {
+            Ok(e) => e,
+            Err(e) => {
+                info!("Warning: Could not list files in {}: {}", current_dir, e);
+                continue;
+            }
+        };
+        
+        for entry in entries {
+            // Skip . and ..
+            if entry.name == "." || entry.name == ".." {
+                continue;
+            }
+            
+            // Calculate relative path
+            let relative_path = if current_dir == base_path {
+                entry.name.clone()
+            } else {
+                let rel_dir = current_dir.strip_prefix(base_path).unwrap_or(&current_dir);
+                let rel_dir = rel_dir.trim_start_matches('/');
+                if rel_dir.is_empty() {
+                    entry.name.clone()
+                } else {
+                    format!("{}/{}", rel_dir, entry.name)
+                }
+            };
+            
+            // Skip excluded paths
+            if should_exclude(&relative_path, exclude_patterns) {
+                continue;
+            }
+            
+            let file_info = FileInfo {
+                name: entry.name.clone(),
+                path: format!("{}/{}", current_dir, entry.name),
+                size: entry.size.unwrap_or(0),
+                modified: entry.modified.and_then(|s| {
+                    chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M")
+                        .ok()
+                        .map(|dt| chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(dt, chrono::Utc))
+                }),
+                is_dir: entry.is_dir,
+                checksum: None,
+            };
+            
+            files.insert(relative_path, file_info);
+            
+            // Add subdirectories to process
+            if entry.is_dir {
+                let sub_path = format!("{}/{}", current_dir, entry.name);
+                dirs_to_process.push(sub_path);
+            }
+        }
+    }
+    
+    // Return to base path
+    let _ = ftp_manager.change_dir(base_path).await;
+    
+    Ok(files)
+}
+
+#[tauri::command]
+fn get_compare_options_default() -> CompareOptions {
+    CompareOptions::default()
+}
+// ============ AI Commands ============
+
+#[tauri::command]
+async fn ai_chat(request: ai::AIRequest) -> Result<ai::AIResponse, String> {
+    ai::call_ai(request)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn ai_test_provider(
+    provider_type: ai::ProviderType,
+    base_url: String,
+    api_key: Option<String>,
+) -> Result<bool, String> {
+    ai::test_provider(provider_type, base_url, api_key)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// Tool execution request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ToolRequest {
+    tool_name: String,
+    args: serde_json::Value,
+}
+
+// Execute AI tool - routes to existing FTP commands
+#[tauri::command]
+async fn ai_execute_tool(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    request: ToolRequest,
+) -> Result<serde_json::Value, String> {
+    let args = request.args;
+    
+    match request.tool_name.as_str() {
+        "list_files" => {
+            let location = args.get("location").and_then(|v| v.as_str()).unwrap_or("remote");
+            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("/");
+            
+            if location == "local" {
+                let files = get_local_files(path.to_string())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok(serde_json::json!({
+                    "success": true,
+                    "count": files.len(),
+                    "files": files.iter().take(20).map(|f| {
+                        serde_json::json!({
+                            "name": f.name,
+                            "is_dir": f.is_dir,
+                            "size": f.size
+                        })
+                    }).collect::<Vec<_>>()
+                }))
+            } else {
+                let mut manager = state.ftp_manager.lock().await;
+                let files = manager.list_files().await.map_err(|e| e.to_string())?;
+                Ok(serde_json::json!({
+                    "success": true,
+                    "count": files.len(),
+                    "files": files.iter().take(20).map(|f| {
+                        serde_json::json!({
+                            "name": f.name,
+                            "is_dir": f.is_dir,
+                            "size": f.size
+                        })
+                    }).collect::<Vec<_>>()
+                }))
+            }
+        },
+        
+        "read_file" => {
+            let location = args.get("location").and_then(|v| v.as_str()).unwrap_or("remote");
+            let path = args.get("path").and_then(|v| v.as_str()).ok_or("path required")?;
+            
+            if location == "local" {
+                let content = read_local_file(path.to_string())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok(serde_json::json!({
+                    "success": true,
+                    "content": content.chars().take(5000).collect::<String>(),
+                    "truncated": content.len() > 5000
+                }))
+            } else {
+                let content = preview_remote_file(state.clone(), path.to_string())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok(serde_json::json!({
+                    "success": true,
+                    "content": content.chars().take(5000).collect::<String>(),
+                    "truncated": content.len() > 5000
+                }))
+            }
+        },
+        
+        "create_folder" => {
+            let location = args.get("location").and_then(|v| v.as_str()).unwrap_or("remote");
+            let path = args.get("path").and_then(|v| v.as_str()).ok_or("path required")?;
+            
+            if location == "local" {
+                create_local_folder(path.to_string())
+                    .await
+                    .map_err(|e| e.to_string())?;
+            } else {
+                create_remote_folder(state.clone(), path.to_string())
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(serde_json::json!({ "success": true, "message": format!("Created folder: {}", path) }))
+        },
+        
+        "delete_file" => {
+            let location = args.get("location").and_then(|v| v.as_str()).unwrap_or("remote");
+            let path = args.get("path").and_then(|v| v.as_str()).ok_or("path required")?;
+            
+            if location == "local" {
+                delete_local_file(path.to_string())
+                    .await
+                    .map_err(|e| e.to_string())?;
+            } else {
+                // Assume file, not directory for simple delete
+                delete_remote_file(state.clone(), path.to_string(), false)
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(serde_json::json!({ "success": true, "message": format!("Deleted: {}", path) }))
+        },
+        
+        "rename_file" => {
+            let location = args.get("location").and_then(|v| v.as_str()).unwrap_or("remote");
+            let old_path = args.get("old_path").and_then(|v| v.as_str()).ok_or("old_path required")?;
+            let new_path = args.get("new_path").and_then(|v| v.as_str()).ok_or("new_path required")?;
+            
+            if location == "local" {
+                rename_local_file(old_path.to_string(), new_path.to_string())
+                    .await
+                    .map_err(|e| e.to_string())?;
+            } else {
+                rename_remote_file(state.clone(), old_path.to_string(), new_path.to_string())
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(serde_json::json!({ "success": true, "message": format!("Renamed {} to {}", old_path, new_path) }))
+        },
+        
+        "download_file" => {
+            let remote_path = args.get("remote_path").and_then(|v| v.as_str()).ok_or("remote_path required")?;
+            let local_path = args.get("local_path").and_then(|v| v.as_str()).ok_or("local_path required")?;
+            
+            download_file(app, state.clone(), DownloadParams {
+                remote_path: remote_path.to_string(),
+                local_path: local_path.to_string(),
+            }).await.map_err(|e| e.to_string())?;
+            
+            Ok(serde_json::json!({ "success": true, "message": format!("Downloaded {} to {}", remote_path, local_path) }))
+        },
+        
+        "upload_file" => {
+            let local_path = args.get("local_path").and_then(|v| v.as_str()).ok_or("local_path required")?;
+            let remote_path = args.get("remote_path").and_then(|v| v.as_str()).ok_or("remote_path required")?;
+            
+            upload_file(app, state.clone(), UploadParams {
+                local_path: local_path.to_string(),
+                remote_path: remote_path.to_string(),
+            }).await.map_err(|e| e.to_string())?;
+            
+            Ok(serde_json::json!({ "success": true, "message": format!("Uploaded {} to {}", local_path, remote_path) }))
+        },
+        
+        "chmod" => {
+            let path = args.get("path").and_then(|v| v.as_str()).ok_or("path required")?;
+            let mode = args.get("mode").and_then(|v| v.as_str()).ok_or("mode required")?;
+            
+            chmod_remote_file(state.clone(), path.to_string(), mode.to_string())
+                .await
+                .map_err(|e| e.to_string())?;
+            
+            Ok(serde_json::json!({ "success": true, "message": format!("Changed permissions of {} to {}", path, mode) }))
+        },
+        
+        _ => Err(format!("Unknown tool: {}", request.tool_name))
+    }
+}
+
 // ============ App Entry Point ============
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -765,6 +1151,11 @@ pub fn run() {
             save_local_file,
             save_remote_file,
             toggle_menu_bar,
+            compare_directories,
+            get_compare_options_default,
+            ai_chat,
+            ai_test_provider,
+            ai_execute_tool,
             #[cfg(unix)]
             spawn_shell,
             #[cfg(unix)]

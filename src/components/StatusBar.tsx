@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Globe, HardDrive, Wifi, WifiOff, Code, Terminal } from 'lucide-react';
+import { Globe, HardDrive, Wifi, WifiOff, Code, FolderSync } from 'lucide-react';
 
 interface StatusBarProps {
     isConnected: boolean;
@@ -11,6 +11,7 @@ interface StatusBarProps {
     activePanel: 'remote' | 'local';
     devToolsOpen?: boolean;
     onToggleDevTools?: () => void;
+    onToggleSync?: () => void;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -23,6 +24,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     activePanel,
     devToolsOpen = false,
     onToggleDevTools,
+    onToggleSync,
 }) => {
     return (
         <div className="h-7 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 select-none shrink-0">
@@ -69,7 +71,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                 </div>
             </div>
 
-            {/* Right: File Count + DevTools */}
+            {/* Right: File Count + Sync + DevTools */}
             <div className="flex items-center gap-4">
                 {isConnected && (
                     <div className="flex items-center gap-1.5">
@@ -85,13 +87,25 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                 {/* Separator */}
                 <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
 
+                {/* Sync Button */}
+                {onToggleSync && isConnected && (
+                    <button
+                        onClick={onToggleSync}
+                        className="flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+                        title="Compare & Synchronize Files"
+                    >
+                        <FolderSync size={12} />
+                        <span>Sync Files</span>
+                    </button>
+                )}
+
                 {/* DevTools Toggle */}
                 {onToggleDevTools && (
                     <button
                         onClick={onToggleDevTools}
                         className={`flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors ${devToolsOpen
-                                ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400'
-                                : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+                            ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400'
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                         title="Toggle DevTools (Preview/Editor)"
                     >
@@ -105,4 +119,3 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 };
 
 export default StatusBar;
-

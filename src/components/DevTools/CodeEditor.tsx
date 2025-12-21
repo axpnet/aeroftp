@@ -162,7 +162,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                             title="Change theme"
                         >
                             <Palette size={12} />
-                            {themes.find(t => t.id === theme)?.icon}
+                            <span>Tema</span>
                         </button>
                         {showThemeMenu && (
                             <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-10 py-1 min-w-[140px]">

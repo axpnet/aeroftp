@@ -10,6 +10,7 @@ interface DevToolsPanelProps {
     isOpen: boolean;
     previewFile: PreviewFile | null;
     localPath?: string;
+    remotePath?: string;
     onClose: () => void;
     onToggle: () => void;
     onSaveFile?: (content: string, file: PreviewFile) => Promise<void>;
@@ -18,12 +19,13 @@ interface DevToolsPanelProps {
 
 const DEFAULT_HEIGHT = 300;
 const MIN_HEIGHT = 150;
-const MAX_HEIGHT = 600;
+const MAX_HEIGHT = 1200;
 
 export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
     isOpen,
     previewFile,
     localPath,
+    remotePath,
     onClose,
     onToggle,
     onSaveFile,
@@ -63,7 +65,8 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
         if (isMaximized) {
             setHeight(DEFAULT_HEIGHT);
         } else {
-            setHeight(MAX_HEIGHT);
+            // Use almost full viewport height (leave room for header/statusbar)
+            setHeight(window.innerHeight - 180);
         }
         setIsMaximized(!isMaximized);
     };
@@ -174,7 +177,7 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
                     <SSHTerminal className="h-full" localPath={localPath} />
                 )}
                 {activeTab === 'chat' && (
-                    <AIChat className="h-full" />
+                    <AIChat className="h-full" remotePath={remotePath} localPath={localPath} />
                 )}
             </div>
         </div>

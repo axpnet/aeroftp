@@ -576,7 +576,9 @@ impl FtpManager {
         let is_dir = permissions.starts_with('d');
         let is_symlink = permissions.starts_with('l');
         
-        let name = parts.last()?.to_string();
+        // Join all parts from index 8 onwards to handle filenames with spaces
+        // Unix listing format: permissions links owner group size month day time/year name...
+        let name = parts[8..].join(" ");
         let size = parts.get(4).and_then(|s| s.parse().ok());
         
         let modified = if parts.len() >= 8 {
@@ -620,7 +622,14 @@ impl FtpManager {
             parts.get(2).and_then(|s| s.parse().ok())
         };
 
-        let name = parts.last()?.to_string();
+        // DOS format: date time <DIR>/size name...
+        // Find the filename start (after date, time, and either <DIR> or size)
+        let name_start_idx = if is_dir { 3 } else { 3 };
+        let name = if parts.len() > name_start_idx {
+            parts[name_start_idx..].join(" ")
+        } else {
+            parts.last()?.to_string()
+        };
 
         let path = if self.current_path.ends_with('/') {
             format!("{}{}", self.current_path, name)

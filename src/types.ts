@@ -113,3 +113,58 @@ export interface TabsState {
   sessions: FtpSession[];
   activeSessionId: string | null;
 }
+
+// ============ Sync Types ============
+
+export type SyncStatus =
+  | 'identical'
+  | 'local_newer'
+  | 'remote_newer'
+  | 'local_only'
+  | 'remote_only'
+  | 'conflict'
+  | 'size_mismatch';
+
+export type SyncDirection =
+  | 'local_to_remote'
+  | 'remote_to_local'
+  | 'bidirectional';
+
+export type SyncAction =
+  | 'upload'
+  | 'download'
+  | 'delete_local'
+  | 'delete_remote'
+  | 'skip'
+  | 'ask_user';
+
+export interface FileInfo {
+  name: string;
+  path: string;
+  size: number;
+  modified: string | null;
+  is_dir: boolean;
+  checksum: string | null;
+}
+
+export interface FileComparison {
+  relative_path: string;
+  status: SyncStatus;
+  local_info: FileInfo | null;
+  remote_info: FileInfo | null;
+  is_dir: boolean;
+}
+
+export interface CompareOptions {
+  compare_timestamp: boolean;
+  compare_size: boolean;
+  compare_checksum: boolean;
+  exclude_patterns: string[];
+  direction: SyncDirection;
+}
+
+export interface SyncOperation {
+  comparison: FileComparison;
+  action: SyncAction;
+  selected: boolean;
+}

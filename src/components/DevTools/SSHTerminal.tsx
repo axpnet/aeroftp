@@ -99,12 +99,12 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
             }
         });
 
-        // Handle resize with debounce
+        // Handle resize with ResizeObserver (detects container size changes, not just window)
         let resizeTimeout: number;
         const handleResize = () => {
             if (resizeTimeout) window.clearTimeout(resizeTimeout);
             resizeTimeout = window.setTimeout(() => {
-                if (fitAddonRef.current && isConnected) {
+                if (fitAddonRef.current && xtermRef.current) {
                     fitAddonRef.current.fit();
                     const dims = fitAddonRef.current.proposeDimensions();
                     if (dims) {
@@ -115,10 +115,21 @@ export const SSHTerminal: React.FC<SSHTerminalProps> = ({
             }, 100);
         };
 
+        // Use ResizeObserver to detect when the terminal container resizes
+        const resizeObserver = new ResizeObserver(() => {
+            handleResize();
+        });
+
+        if (terminalRef.current) {
+            resizeObserver.observe(terminalRef.current);
+        }
+
+        // Also listen to window resize as fallback
         window.addEventListener('resize', handleResize);
 
         return () => {
             window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
             if (unlistenRef.current) {
                 unlistenRef.current();
             }

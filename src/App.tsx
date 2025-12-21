@@ -20,7 +20,8 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { StatusBar } from './components/StatusBar';
 import { UploadQueue, useUploadQueue } from './components/UploadQueue';
 import { CustomTitlebar } from './components/CustomTitlebar';
-import { DevToolsPanel, PreviewFile, isPreviewable } from './components/DevTools';
+import { DevToolsV2, PreviewFile, isPreviewable } from './components/DevTools';
+import { SyncPanel } from './components/SyncPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import {
   Sun, Moon, Monitor, FolderUp, RefreshCw, FolderPlus, FolderOpen,
@@ -208,6 +209,51 @@ const ConfirmDialog = ({ message, onConfirm, onCancel }: { message: string; onCo
   </div>
 );
 
+// ============ Sync Navigation Choice Dialog ============
+interface SyncNavDialogProps {
+  missingPath: string;
+  isRemote: boolean;
+  onCreateFolder: () => void;
+  onDisableSync: () => void;
+  onCancel: () => void;
+}
+
+const SyncNavDialog = ({ missingPath, isRemote, onCreateFolder, onDisableSync, onCancel }: SyncNavDialogProps) => (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-md">
+      <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">
+        📁 Folder Not Found
+      </h3>
+      <p className="text-gray-600 dark:text-gray-400 mb-2 text-sm">
+        The {isRemote ? 'remote' : 'local'} folder does not exist:
+      </p>
+      <p className="text-blue-500 font-mono text-sm bg-gray-100 dark:bg-gray-700 p-2 rounded mb-4 break-all">
+        {missingPath}
+      </p>
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={onCreateFolder}
+          className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-left flex items-center gap-2"
+        >
+          <span>📂</span> Create folder and continue sync
+        </button>
+        <button
+          onClick={onDisableSync}
+          className="w-full px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-left flex items-center gap-2"
+        >
+          <span>🔗</span> Disable navigation sync
+        </button>
+        <button
+          onClick={onCancel}
+          className="w-full px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-left"
+        >
+          Cancel navigation
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 // ============ Input Dialog ============
 const InputDialog = ({ title, defaultValue, onConfirm, onCancel }: { title: string; defaultValue: string; onConfirm: (value: string) => void; onCancel: () => void }) => {
   const [value, setValue] = useState(defaultValue);
@@ -266,10 +312,12 @@ const App: React.FC = () => {
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [showSyncPanel, setShowSyncPanel] = useState(false);
   const [showMenuBar, setShowMenuBar] = useState(true);  // Internal header visibility
   const [systemMenuVisible, setSystemMenuVisible] = useState(true);  // Native system menu bar
   const [isSyncNavigation, setIsSyncNavigation] = useState(false); // Navigation Sync feature
   const [syncBasePaths, setSyncBasePaths] = useState<{ remote: string; local: string } | null>(null);
+  const [syncNavDialog, setSyncNavDialog] = useState<{ missingPath: string; isRemote: boolean; targetPath: string } | null>(null);
 
   // Multi-Session Tabs (Hybrid Cache Architecture)
   const [sessions, setSessions] = useState<FtpSession[]>([]);
@@ -602,13 +650,14 @@ const App: React.FC = () => {
           ? response.current_path.slice(syncBasePaths.remote.length)
           : '';
         const newLocalPath = syncBasePaths.local + relativePath;
-        // Only sync if the local path exists (don't show errors if it doesn't)
+        // Check if local path exists
         try {
           const files: LocalFile[] = await invoke('get_local_files', { path: newLocalPath });
           setLocalFiles(files);
           setCurrentLocalPath(newLocalPath);
         } catch {
-          // Local directory doesn't exist, silently ignore sync
+          // Local directory doesn't exist - show dialog
+          setSyncNavDialog({ missingPath: newLocalPath, isRemote: false, targetPath: newLocalPath });
         }
       }
     } catch (error) { toast.error('Error', `Failed to change directory: ${error}`); }
@@ -623,15 +672,44 @@ const App: React.FC = () => {
         ? path.slice(syncBasePaths.local.length)
         : '';
       const newRemotePath = syncBasePaths.remote + relativePath;
-      // Only sync if the remote path exists
+      // Check if remote path exists
       try {
         const response: FileListResponse = await invoke('change_directory', { path: newRemotePath });
         setRemoteFiles(response.files);
         setCurrentRemotePath(response.current_path);
       } catch {
-        // Remote directory doesn't exist, silently ignore sync
+        // Remote directory doesn't exist - show dialog
+        setSyncNavDialog({ missingPath: newRemotePath, isRemote: true, targetPath: newRemotePath });
       }
     }
+  };
+
+  // Handle sync nav dialog actions
+  const handleSyncNavCreateFolder = async () => {
+    if (!syncNavDialog) return;
+    try {
+      if (syncNavDialog.isRemote) {
+        await invoke('create_remote_folder', { path: syncNavDialog.targetPath });
+        const response: FileListResponse = await invoke('change_directory', { path: syncNavDialog.targetPath });
+        setRemoteFiles(response.files);
+        setCurrentRemotePath(response.current_path);
+        toast.success('Folder Created', syncNavDialog.missingPath);
+      } else {
+        await invoke('create_local_folder', { path: syncNavDialog.targetPath });
+        await loadLocalFiles(syncNavDialog.targetPath);
+        toast.success('Folder Created', syncNavDialog.missingPath);
+      }
+    } catch (error) {
+      toast.error('Failed to create folder', String(error));
+    }
+    setSyncNavDialog(null);
+  };
+
+  const handleSyncNavDisable = () => {
+    setIsSyncNavigation(false);
+    setSyncBasePaths(null);
+    toast.info('Navigation Sync Disabled');
+    setSyncNavDialog(null);
   };
 
   // Toggle navigation sync and set base paths
@@ -967,6 +1045,15 @@ const App: React.FC = () => {
       {activeTransfer && <TransferProgressBar transfer={activeTransfer} onCancel={cancelTransfer} />}
       {confirmDialog && <ConfirmDialog message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
       {inputDialog && <InputDialog title={inputDialog.title} defaultValue={inputDialog.defaultValue} onConfirm={inputDialog.onConfirm} onCancel={() => setInputDialog(null)} />}
+      {syncNavDialog && (
+        <SyncNavDialog
+          missingPath={syncNavDialog.missingPath}
+          isRemote={syncNavDialog.isRemote}
+          onCreateFolder={handleSyncNavCreateFolder}
+          onDisableSync={handleSyncNavDisable}
+          onCancel={() => setSyncNavDialog(null)}
+        />
+      )}
       <PermissionsDialog
         isOpen={permissionsDialog?.visible || false}
         onClose={() => setPermissionsDialog(null)}
@@ -986,6 +1073,17 @@ const App: React.FC = () => {
       <AboutDialog isOpen={showAboutDialog} onClose={() => setShowAboutDialog(false)} />
       <ShortcutsDialog isOpen={showShortcutsDialog} onClose={() => setShowShortcutsDialog(false)} />
       <SettingsPanel isOpen={showSettingsPanel} onClose={() => setShowSettingsPanel(false)} />
+      <SyncPanel
+        isOpen={showSyncPanel}
+        onClose={() => setShowSyncPanel(false)}
+        localPath={currentLocalPath}
+        remotePath={currentRemotePath}
+        isConnected={isConnected}
+        onSyncComplete={async () => {
+          await loadRemoteFiles();
+          await loadLocalFiles(currentLocalPath);
+        }}
+      />
 
       {/* Header - can be hidden */}
       {showMenuBar && (
@@ -1020,7 +1118,7 @@ const App: React.FC = () => {
         {!isConnected ? (
           <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
             {/* Quick Connect */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
               <h2 className="text-xl font-semibold mb-4">Quick Connect</h2>
               <div className="space-y-3">
                 <div>
@@ -1066,7 +1164,7 @@ const App: React.FC = () => {
               </div>
             </div>
             {/* Saved Servers */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
               <SavedServers onConnect={async (params, initialPath, localInitialPath) => {
                 setConnectionParams(params);
                 setLoading(true);
@@ -1100,7 +1198,7 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">
             {/* Session Tabs - visible when there are sessions */}
             {sessions.length > 0 && (
               <SessionTabs
@@ -1154,9 +1252,9 @@ const App: React.FC = () => {
                 <button onClick={() => setActivePanel('local')} className={`px-4 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${activePanel === 'local' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>
                   <HardDrive size={16} /> Local
                 </button>
-                <div className="w-px h-6 bg-gray-300 dark:bg-gray-500 mx-1" />
-                {/* Search Filter */}
-                <div className="relative">
+                <div className="w-px h-6 bg-gray-300 dark:bg-gray-500 mx-1 hidden lg:block" />
+                {/* Search Filter - hidden on small screens */}
+                <div className="relative hidden lg:block">
                   <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
@@ -1166,13 +1264,13 @@ const App: React.FC = () => {
                     className="w-40 pl-8 pr-2 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                {/* Preview Toggle */}
+                {/* Preview Toggle - hidden on small screens */}
                 <button
                   onClick={() => setShowLocalPreview(p => !p)}
-                  className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${showLocalPreview ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'}`}
+                  className={`px-3 py-1.5 rounded-lg text-sm items-center gap-1.5 hidden md:flex ${showLocalPreview ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'}`}
                   title="Toggle Preview Panel"
                 >
-                  <Eye size={16} /> Preview
+                  <Eye size={16} /><span className="hidden lg:inline">Preview</span>
                 </button>
                 <div className="w-px h-6 bg-gray-300 dark:bg-gray-500 mx-1" />
                 <button onClick={() => setShowSettingsPanel(true)} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-lg text-sm flex items-center gap-1.5" title="Settings (Ctrl+,)">
@@ -1370,14 +1468,13 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* DevTools Panel */}
-      <DevToolsPanel
+      {/* DevTools V2 - 3-Column Responsive Layout */}
+      <DevToolsV2
         isOpen={devToolsOpen}
         previewFile={devToolsPreviewFile}
         localPath={currentLocalPath}
+        remotePath={currentRemotePath}
         onClose={() => setDevToolsOpen(false)}
-        onToggle={() => setDevToolsOpen(!devToolsOpen)}
-        onClearPreview={() => setDevToolsPreviewFile(null)}
         onSaveFile={async (content, file) => {
           try {
             if (file.isRemote) {
@@ -1405,6 +1502,7 @@ const App: React.FC = () => {
         activePanel={activePanel}
         devToolsOpen={devToolsOpen}
         onToggleDevTools={() => setDevToolsOpen(!devToolsOpen)}
+        onToggleSync={() => setShowSyncPanel(true)}
       />
     </div>
   );

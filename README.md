@@ -27,6 +27,7 @@
 - 🎨 **Beautiful UI** - Apple-inspired design with glass morphism effects
 - 🌙 **Dark Mode** - Full dark mode support with smooth transitions
 - 📁 **Dual Panel** - Remote and local file browsing side by side
+- 🔄 **File Sync** - Compare and synchronize local/remote directories
 - 🔒 **Secure** - Supports FTPS (FTP over TLS)
 - ⚡ **Async** - Non-blocking file transfers with progress tracking
 - 💾 **Profiles** - Save your favorite server connections
@@ -54,6 +55,22 @@ AeroFTP includes an integrated DevTools panel (like Chrome DevTools) for web dev
 - Instant tab switching with cached file lists
 - Background reconnection
 
+### 🤖 AI Assistant (AeroAgent)
+Integrated AI-powered assistant for intelligent FTP operations:
+
+| Feature            | Description                                           |
+| ------------------ | ----------------------------------------------------- |
+| **Multi-Provider** | Google Gemini, OpenAI, Anthropic, Ollama (local)      |
+| **Auto-Routing**   | Automatic model selection based on task type          |
+| **FTP Tools**      | List, read, compare, sync files via natural language  |
+| **Smart Context**  | Insert current paths with `@` mention or `+` menu     |
+| **Markdown Chat**  | Code blocks, syntax highlighting, formatted responses |
+
+#### Advanced Settings
+- **Conversation Style**: Precise / Balanced / Creative
+- **Temperature**: Control response randomness (0.0 - 2.0)
+- **Max Tokens**: Limit response length (256 - 32768)
+
 ## 📸 Screenshots
 
 <p align="center">
@@ -66,12 +83,20 @@ AeroFTP includes an integrated DevTools panel (like Chrome DevTools) for web dev
 
 ## 🛠️ Installation
 
+### Snap Store (Recommended for Linux)
+
+```bash
+sudo snap install aeroftp
+```
+
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/aeroftp)
+
 ### From Releases
 
 Download the latest release for your platform:
-- **Linux**: `.deb` or `.AppImage`
-- **Windows**: `.msi` installer
-- **macOS**: `.dmg` image
+- **Linux**: `.deb`, `.rpm`, `.AppImage`, or `.snap`
+- **Windows**: `.msi` installer or `.exe`
+- **macOS**: `.dmg` image (coming soon)
 
 ### Build from Source
 
