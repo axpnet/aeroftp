@@ -10,9 +10,11 @@ use tokio::sync::Mutex;
 use tracing::info;
 
 mod ftp;
+#[cfg(unix)]
 mod pty;
 
 use ftp::{FtpManager, RemoteFile};
+#[cfg(unix)]
 use pty::{create_pty_state, spawn_shell, pty_write, pty_resize, pty_close, PtyState};
 
 // Shared application state
@@ -758,9 +760,13 @@ pub fn run() {
             save_local_file,
             save_remote_file,
             toggle_menu_bar,
+            #[cfg(unix)]
             spawn_shell,
+            #[cfg(unix)]
             pty_write,
+            #[cfg(unix)]
             pty_resize,
+            #[cfg(unix)]
             pty_close
         ])
         .run(tauri::generate_context!())
