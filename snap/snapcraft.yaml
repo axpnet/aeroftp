@@ -1,5 +1,5 @@
 name: aeroftp
-version: '0.3.2'
+version: '0.5.0'
 summary: Fast, Beautiful, Reliable FTP Client built with Tauri
 description: |
   AeroFTP is a modern FTP client that combines beauty and functionality.

@@ -94,14 +94,14 @@ jobs:
           name: aeroftp-snap
           path: ${{ steps.snapcraft.outputs.snap }}
 
-      # Optional: Publish to Snap Store (requires SNAPCRAFT_STORE_CREDENTIALS secret)
-      # - name: Publish to Snap Store
-      #   uses: snapcore/action-publish@v1
-      #   env:
-      #     SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
-      #   with:
-      #     snap: ${{ steps.snapcraft.outputs.snap }}
-      #     release: edge
+      # Publish to Snap Store (requires SNAPCRAFT_STORE_CREDENTIALS secret)
+      - name: Publish to Snap Store
+        uses: snapcore/action-publish@v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        with:
+          snap: ${{ steps.snapcraft.outputs.snap }}
+          release: edge
 
   # Separate job for release creation - only runs on tags
   release:
