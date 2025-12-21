@@ -47,13 +47,19 @@ jobs:
         run: npm ci
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0.5.0
+        run: npm run tauri build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'AeroFTP ${{ github.ref_name }}'
-          releaseBody: |
+          tag_name: ${{ github.ref_name }}
+          release_name: 'AeroFTP ${{ github.ref_name }}'
+          body: |
             ## AeroFTP Release ${{ github.ref_name }}
             
             ✨ **Features:**
@@ -64,9 +70,8 @@ jobs:
             📦 **Downloads:**
             - **Windows**: `.msi` installer or `.exe`
             - **Linux**: `.deb`, `.rpm`, or `.AppImage`
-          releaseDraft: true
+          draft: true
           prerelease: false
-        if: startsWith(github.ref, 'refs/tags/')
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
