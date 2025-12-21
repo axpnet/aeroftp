@@ -87,7 +87,7 @@ export const ToolApproval: React.FC<ToolApprovalProps> = ({ toolCall, onApprove,
             {/* Preview if available */}
             {toolCall.preview && (
                 <div className="text-xs text-gray-400 mb-2 italic">
-                    Preview: {toolCall.preview as React.ReactNode}
+                    Preview: {toolCall.preview as any}
                 </div>
             )}
 
