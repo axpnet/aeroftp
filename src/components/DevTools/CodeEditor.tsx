@@ -55,6 +55,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 }) => {
     const editorRef = useRef<any>(null);
     const monacoRef = useRef<any>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
     const [originalContent, setOriginalContent] = useState('');
@@ -72,14 +73,56 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         if (file) {
             setOriginalContent(file.content);
         }
+
+        // Force layout update after mount to fix rendering issues
+        setTimeout(() => {
+            editor.layout();
+            editor.focus();
+        }, 100);
     };
 
-    // Apply theme when changed
+    // Force layout update when container might have changed
     useEffect(() => {
-        if (monacoRef.current) {
+        const editor = editorRef.current;
+        if (editor) {
+            // Small delay to ensure container is fully rendered
+            const timer = setTimeout(() => {
+                editor.layout();
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [file]);
+
+    // Apply theme when changed with layout refresh
+    useEffect(() => {
+        if (monacoRef.current && editorRef.current) {
             monacoRef.current.editor.setTheme(theme);
+            // Force layout update after theme change
+            setTimeout(() => {
+                editorRef.current?.layout();
+            }, 50);
         }
     }, [theme]);
+
+    // ResizeObserver for container size changes
+    useEffect(() => {
+        const container = containerRef.current;
+        const editor = editorRef.current;
+
+        if (!container) return;
+
+        const resizeObserver = new ResizeObserver(() => {
+            if (editor) {
+                // Debounce the layout call
+                requestAnimationFrame(() => {
+                    editor.layout();
+                });
+            }
+        });
+
+        resizeObserver.observe(container);
+        return () => resizeObserver.disconnect();
+    }, []);
 
     const handleChange = (value: string | undefined) => {
         if (value !== undefined && value !== originalContent) {
@@ -209,7 +252,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             </div>
 
             {/* Monaco Editor */}
-            <div className="flex-1">
+            <div ref={containerRef} className="flex-1" style={{ minHeight: 0 }}>
                 <Editor
                     height="100%"
                     language={monacoLanguage(language)}
