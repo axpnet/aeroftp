@@ -123,7 +123,7 @@ jobs:
             - **Linux**: `.deb`, `.rpm`, or `.AppImage`
             
             📦 **Coming Soon**: Snap and Flatpak packages for easier installation
-          draft: true
+          draft: false
           prerelease: false
           files: |
             ./artifacts/**/*
