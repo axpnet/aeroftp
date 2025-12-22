@@ -37,7 +37,7 @@ export {
 // Viewers (export individually as they're implemented)
 export { ImageViewer } from './viewers/ImageViewer';
 export { AudioPlayer } from './viewers/AudioPlayer';
-// export { VideoPlayer } from './viewers/VideoPlayer';
+export { VideoPlayer } from './viewers/VideoPlayer';
 // export { PDFViewer } from './viewers/PDFViewer';
 // export { MarkdownViewer } from './viewers/MarkdownViewer';
 // export { TextViewer } from './viewers/TextViewer';
