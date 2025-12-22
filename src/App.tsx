@@ -21,6 +21,7 @@ import { StatusBar } from './components/StatusBar';
 import { UploadQueue, useUploadQueue } from './components/UploadQueue';
 import { CustomTitlebar } from './components/CustomTitlebar';
 import { DevToolsV2, PreviewFile, isPreviewable } from './components/DevTools';
+import { UniversalPreview, PreviewFileData, getPreviewCategory, isPreviewable as isMediaPreviewable } from './components/Preview';
 import { SyncPanel } from './components/SyncPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import {
@@ -490,6 +491,10 @@ const App: React.FC = () => {
   const [devToolsOpen, setDevToolsOpen] = useState(false);
   const [devToolsPreviewFile, setDevToolsPreviewFile] = useState<PreviewFile | null>(null);
 
+  // Universal Preview Modal (for media files: images, audio, video, pdf)
+  const [universalPreviewOpen, setUniversalPreviewOpen] = useState(false);
+  const [universalPreviewFile, setUniversalPreviewFile] = useState<PreviewFileData | null>(null);
+
   // View Mode (list/grid)
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const isImageFile = (name: string) => /\.(jpg|jpeg|png|gif|svg|webp|bmp|ico)$/i.test(name);
@@ -534,15 +539,45 @@ const App: React.FC = () => {
     'F1': () => setShowShortcutsDialog(v => !v),
     'F10': () => setShowMenuBar(v => !v),
     'Ctrl+,': () => setShowSettingsPanel(true),
+    // Space key: Open preview for selected file
+    ' ': () => {
+      // Get the first selected file (prefer remote, fallback to local)
+      const selectedRemoteName = Array.from(selectedRemoteFiles)[0];
+      const selectedLocalName = Array.from(selectedLocalFiles)[0];
+
+      if (selectedRemoteName) {
+        const file = remoteFiles.find(f => f.name === selectedRemoteName);
+        if (file && !file.is_dir) {
+          const category = getPreviewCategory(file.name);
+          if (['image', 'audio', 'video', 'pdf', 'markdown', 'text'].includes(category)) {
+            openUniversalPreview(file, true);
+          } else if (isPreviewable(file.name)) {
+            openDevToolsPreview(file, true);
+          }
+        }
+      } else if (selectedLocalName) {
+        const file = localFiles.find(f => f.name === selectedLocalName);
+        if (file && !file.is_dir) {
+          const category = getPreviewCategory(file.name);
+          if (['image', 'audio', 'video', 'pdf', 'markdown', 'text'].includes(category)) {
+            openUniversalPreview(file, false);
+          } else if (isPreviewable(file.name)) {
+            openDevToolsPreview(file, false);
+          }
+        }
+      }
+    },
     'Escape': () => {
       // Close any open dialogs priority-wise
-      if (showShortcutsDialog) setShowShortcutsDialog(false);
+      if (universalPreviewOpen) closeUniversalPreview();
+      else if (showShortcutsDialog) setShowShortcutsDialog(false);
       else if (showAboutDialog) setShowAboutDialog(false);
       else if (showSettingsPanel) setShowSettingsPanel(false);
       else if (inputDialog) setInputDialog(null);
       else if (confirmDialog) setConfirmDialog(null);
     }
-  }, [showShortcutsDialog, showAboutDialog, showSettingsPanel, inputDialog, confirmDialog]);
+  }, [showShortcutsDialog, showAboutDialog, showSettingsPanel, inputDialog, confirmDialog,
+    universalPreviewOpen, selectedRemoteFiles, selectedLocalFiles, remoteFiles, localFiles]);
 
   // Init System Menu and Theme on Mount
   useEffect(() => {
@@ -966,6 +1001,61 @@ const App: React.FC = () => {
     }
   };
 
+  // Open Universal Preview Modal (for media files: images, audio, video, pdf)
+  const openUniversalPreview = async (file: RemoteFile | LocalFile, isRemote: boolean) => {
+    try {
+      const filePath = isRemote ? (file as RemoteFile).path : (file as LocalFile).path;
+      let blobUrl: string | undefined;
+      let content: string | undefined;
+
+      // For images, load as base64 and create blob URL
+      const category = getPreviewCategory(file.name);
+
+      if (category === 'image') {
+        if (isRemote) {
+          // Remote image: download as base64
+          const base64 = await invoke<string>('ftp_read_file_base64', { path: filePath });
+          const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+          const mimeMap: Record<string, string> = {
+            jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+            gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+          };
+          blobUrl = `data:${mimeMap[ext] || 'image/png'};base64,${base64}`;
+        } else {
+          // Local image: read as base64
+          const base64 = await invoke<string>('read_file_base64', { path: filePath });
+          const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+          const mimeMap: Record<string, string> = {
+            jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+            gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+          };
+          blobUrl = `data:${mimeMap[ext] || 'image/png'};base64,${base64}`;
+        }
+      }
+      // TODO: For audio/video, implement streaming blob URL
+      // TODO: For PDF, implement pdf.js loading
+
+      setUniversalPreviewFile({
+        name: file.name,
+        path: filePath,
+        size: file.size || 0,
+        isRemote,
+        blobUrl,
+        content,
+        modified: file.modified || undefined,
+      });
+      setUniversalPreviewOpen(true);
+    } catch (error) {
+      toast.error('Preview Failed', String(error));
+    }
+  };
+
+  // Close Universal Preview
+  const closeUniversalPreview = () => {
+    setUniversalPreviewOpen(false);
+    setUniversalPreviewFile(null);
+  };
+
   // Upload files (Selected or Dialog)
   const uploadMultipleFiles = async (filesOverride?: string[]) => {
     if (!isConnected) return;
@@ -1180,7 +1270,10 @@ const App: React.FC = () => {
 
     const items: ContextMenuItem[] = [
       { label: downloadLabel, icon: <Download size={14} />, action: () => downloadMultipleFiles(filesToUse) },
-      { label: 'Preview', icon: <Eye size={14} />, action: () => openDevToolsPreview(file, true), disabled: count > 1 || file.is_dir || !isPreviewable(file.name) },
+      // Media files (images, audio, video, pdf) use Universal Preview modal
+      { label: 'Preview', icon: <Eye size={14} />, action: () => openUniversalPreview(file, true), disabled: count > 1 || file.is_dir || !isMediaPreviewable(file.name) },
+      // Code files use DevTools source viewer
+      { label: 'View Source', icon: <Code size={14} />, action: () => openDevToolsPreview(file, true), disabled: count > 1 || file.is_dir || !isPreviewable(file.name) },
       { label: 'Rename', icon: <Pencil size={14} />, action: () => renameFile(file.path, file.name, true), disabled: count > 1 },
       { label: 'Permissions', icon: <Shield size={14} />, action: () => setPermissionsDialog({ file, visible: true }), disabled: count > 1 },
       { label: 'Delete', icon: <Trash2 size={14} />, action: () => deleteMultipleRemoteFiles(filesToUse), danger: true, divider: true },
@@ -1218,7 +1311,10 @@ const App: React.FC = () => {
         action: () => uploadMultipleFiles(filesToUpload),
         disabled: !isConnected
       },
-      { label: 'Preview', icon: <Eye size={14} />, action: () => openDevToolsPreview(file, false), disabled: count > 1 || file.is_dir || !isPreviewable(file.name) },
+      // Media files (images, audio, video, pdf) use Universal Preview modal
+      { label: 'Preview', icon: <Eye size={14} />, action: () => openUniversalPreview(file, false), disabled: count > 1 || file.is_dir || !isMediaPreviewable(file.name) },
+      // Code files use DevTools source viewer
+      { label: 'View Source', icon: <Code size={14} />, action: () => openDevToolsPreview(file, false), disabled: count > 1 || file.is_dir || !isPreviewable(file.name) },
       { label: 'Rename', icon: <Pencil size={14} />, action: () => renameFile(file.path, file.name, false), disabled: count > 1 },
       { label: 'Delete', icon: <Trash2 size={14} />, action: () => deleteMultipleLocalFiles(filesToUpload), danger: true, divider: true },
       { label: 'Copy Path', icon: <Copy size={14} />, action: () => { navigator.clipboard.writeText(file.path); toast.success('Path copied'); } },
@@ -1278,6 +1374,13 @@ const App: React.FC = () => {
       <AboutDialog isOpen={showAboutDialog} onClose={() => setShowAboutDialog(false)} />
       <ShortcutsDialog isOpen={showShortcutsDialog} onClose={() => setShowShortcutsDialog(false)} />
       <SettingsPanel isOpen={showSettingsPanel} onClose={() => setShowSettingsPanel(false)} />
+
+      {/* Universal Preview Modal for Media Files */}
+      <UniversalPreview
+        isOpen={universalPreviewOpen}
+        file={universalPreviewFile}
+        onClose={closeUniversalPreview}
+      />
       <SyncPanel
         isOpen={showSyncPanel}
         onClose={() => setShowSyncPanel(false)}

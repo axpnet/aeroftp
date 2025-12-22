@@ -569,8 +569,8 @@ async fn ftp_read_file_base64(state: State<'_, AppState>, path: String) -> Resul
     
     let mut ftp_manager = state.ftp_manager.lock().await;
     
-    // Limit size for thumbnails (500KB should be enough for most images to generate thumbnails)
-    let max_size: u64 = 500 * 1024;
+    // Limit size for preview (10MB should be enough for most media files)
+    let max_size: u64 = 10 * 1024 * 1024;
     
     // Get file size first
     let file_size = ftp_manager.get_file_size(&path)
@@ -578,7 +578,7 @@ async fn ftp_read_file_base64(state: State<'_, AppState>, path: String) -> Resul
         .unwrap_or(0);
     
     if file_size > max_size {
-        return Err(format!("File too large for thumbnail ({} KB). Max: 500 KB", file_size / 1024));
+        return Err(format!("File too large for preview ({:.1} MB). Max: 10 MB", file_size as f64 / 1024.0 / 1024.0));
     }
     
     // Download to memory
