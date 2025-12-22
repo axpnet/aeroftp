@@ -3,7 +3,6 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Instant;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::Mutex;
@@ -17,7 +16,7 @@ mod pty;
 
 use ftp::{FtpManager, RemoteFile};
 #[cfg(unix)]
-use pty::{create_pty_state, spawn_shell, pty_write, pty_resize, pty_close, PtyState};
+use pty::{create_pty_state, spawn_shell, pty_write, pty_resize, pty_close};
 
 // Shared application state
 struct AppState {
@@ -684,7 +683,7 @@ fn toggle_menu_bar(app: AppHandle, window: tauri::Window, visible: bool) {
 // ============ Sync Commands ============
 
 use sync::{
-    CompareOptions, FileComparison, FileInfo, SyncDirection, SyncStatus,
+    CompareOptions, FileComparison, FileInfo,
     build_comparison_results, should_exclude,
 };
 use std::collections::HashMap;

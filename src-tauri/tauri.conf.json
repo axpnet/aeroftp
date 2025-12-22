@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "AeroFTP",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "identifier": "com.aeroftp.app",
   "build": {
     "frontendDist": "../dist",
@@ -39,8 +39,21 @@
       "icons/icon.ico"
     ],
     "shortDescription": "Modern FTP Client",
-    "longDescription": "AeroFTP is a fast, beautiful, and reliable FTP client built with Rust and React.",
+    "longDescription": "AeroFTP is a fast, beautiful, and reliable FTP client built with Rust and React. Features include dual-pane file browser, drag & drop transfers, AI-powered assistant, integrated terminal, and code editor with syntax highlighting.",
     "category": "Utility",
-    "copyright": "Copyright © 2025 axpdev"
+    "copyright": "Copyright © 2025 axpdev",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "windows": {
+      "wix": {
+        "bannerPath": "installer/banner.bmp",
+        "dialogImagePath": "installer/dialog.bmp"
+      },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "installer/header.bmp",
+        "sidebarImage": "installer/sidebar.bmp"
+      }
+    }
   }
 }

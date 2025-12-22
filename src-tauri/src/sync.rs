@@ -4,7 +4,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 /// Tolerance for timestamp comparison (seconds)
 /// Accounts for filesystem and timezone differences
@@ -100,6 +99,7 @@ pub enum SyncDirection {
 }
 
 /// Action to perform during sync
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SyncAction {
@@ -112,6 +112,7 @@ pub enum SyncAction {
 }
 
 /// A sync operation to execute
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncOperation {
     pub comparison: FileComparison,
@@ -119,6 +120,7 @@ pub struct SyncOperation {
 }
 
 /// Result of sync operations
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncResult {
     pub uploaded: u32,
@@ -128,6 +130,7 @@ pub struct SyncResult {
     pub errors: Vec<String>,
 }
 
+#[allow(dead_code)]
 impl SyncResult {
     pub fn new() -> Self {
         Self {
@@ -277,6 +280,7 @@ pub fn build_comparison_results(
 }
 
 /// Determine the recommended action based on comparison status and direction
+#[allow(dead_code)]
 pub fn get_recommended_action(status: &SyncStatus, direction: &SyncDirection) -> SyncAction {
     match (status, direction) {
         // Bidirectional

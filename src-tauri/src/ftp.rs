@@ -11,6 +11,7 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 use tokio::io::AsyncReadExt;
 
+#[allow(dead_code)]
 #[derive(Debug, Error)]
 pub enum FtpManagerError {
     #[error("FTP connection error: {0}")]
@@ -46,6 +47,7 @@ pub struct FtpManager {
     username: Option<String>,
 }
 
+#[allow(dead_code)]
 impl FtpManager {
     pub fn new() -> Self {
         Self {
@@ -394,7 +396,7 @@ impl FtpManager {
         &mut self, 
         local_path: &str, 
         remote_path: &str,
-        file_size: u64,
+        _file_size: u64,
         mut on_progress: F
     ) -> Result<()> 
     where 

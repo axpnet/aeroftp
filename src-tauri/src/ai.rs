@@ -3,7 +3,6 @@
 
 use serde::{Deserialize, Serialize};
 use reqwest::Client;
-use std::collections::HashMap;
 
 // Provider types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -108,6 +107,7 @@ mod gemini {
     pub struct GeminiCandidate {
         pub content: GeminiContentResponse,
         #[serde(rename = "finishReason")]
+        #[allow(dead_code)]
         pub finish_reason: Option<String>,
     }
 
