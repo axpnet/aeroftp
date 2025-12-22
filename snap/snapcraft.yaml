@@ -19,6 +19,7 @@ description: |
 base: core22
 grade: stable
 confinement: strict
+compression: lzo
 
 architectures:
   - build-on: amd64
@@ -29,8 +30,6 @@ apps:
   aeroftp:
     command: usr/bin/aeroftp
     desktop: snap/gui/aeroftp.desktop
-    extensions:
-      - gnome
     plugs:
       - home
       - network
@@ -42,6 +41,8 @@ apps:
       - x11
       - unity7
       - gsettings
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/webkit2gtk-4.1:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET
 
 parts:
   aeroftp:
@@ -52,6 +53,10 @@ parts:
       - libappindicator3-1
       - librsvg2-2
       - libayatana-appindicator3-1
+      - libgtk-3-0
+      - libgdk-pixbuf-2.0-0
+      - libpango-1.0-0
+      - libcairo2
     override-build: |
       # Copy pre-built binary and resources
       mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
@@ -59,14 +64,12 @@ parts:
       
       if [ -f src-tauri/target/release/aeroftp ]; then
         cp src-tauri/target/release/aeroftp $SNAPCRAFT_PART_INSTALL/usr/bin/
+        chmod +x $SNAPCRAFT_PART_INSTALL/usr/bin/aeroftp
         echo "Binary copied successfully"
       else
         echo "ERROR: Binary not found at src-tauri/target/release/aeroftp"
+        ls -la src-tauri/target/release/ || echo "Release directory not found"
         exit 1
       fi
       
       cp icons/AeroFTP_simbol_color_512x512.png $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/aeroftp.png
-
-layout:
-  /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/webkit2gtk-4.1:
-    symlink: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/webkit2gtk-4.1
