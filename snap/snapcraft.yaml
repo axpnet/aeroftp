@@ -45,25 +45,26 @@ apps:
 
 parts:
   aeroftp:
-    plugin: dump
+    plugin: nil
     source: .
     stage-packages:
       - libwebkit2gtk-4.1-0
       - libappindicator3-1
       - librsvg2-2
       - libayatana-appindicator3-1
-    organize:
-      src-tauri/target/release/aeroftp: usr/bin/aeroftp
-      icons/AeroFTP_simbol_color_512x512.png: usr/share/icons/hicolor/256x256/apps/aeroftp.png
-    stage:
-      - usr/bin/aeroftp
-      - usr/share/icons/hicolor/256x256/apps/aeroftp.png
     override-build: |
-      # Copy pre-built binary
+      # Copy pre-built binary and resources
       mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
       mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps
       
-      cp src-tauri/target/release/aeroftp $SNAPCRAFT_PART_INSTALL/usr/bin/ || echo "Binary not found, will be built by workflow"
+      if [ -f src-tauri/target/release/aeroftp ]; then
+        cp src-tauri/target/release/aeroftp $SNAPCRAFT_PART_INSTALL/usr/bin/
+        echo "Binary copied successfully"
+      else
+        echo "ERROR: Binary not found at src-tauri/target/release/aeroftp"
+        exit 1
+      fi
+      
       cp icons/AeroFTP_simbol_color_512x512.png $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/aeroftp.png
 
 layout:

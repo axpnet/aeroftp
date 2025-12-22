@@ -110,14 +110,16 @@ jobs:
 
       - name: Build Snap
         run: snapcraft --use-lxd
-        continue-on-error: true
+
+      - name: List generated files
+        run: ls -la *.snap || echo "No snap files found"
 
       - name: Upload Snap artifact
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: aeroftp-snap
           path: '*.snap'
+          if-no-files-found: warn
 
   # Separate job for release creation - only runs on tags
   release:
