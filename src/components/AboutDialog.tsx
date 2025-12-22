@@ -1,14 +1,12 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Github, Heart, Cpu, Globe, Mail, Copy, Check, ChevronDown, ChevronUp, Wallet } from 'lucide-react';
+import { getVersion } from '@tauri-apps/api/app';
 
 interface AboutDialogProps {
     isOpen: boolean;
     onClose: () => void;
 }
-
-// Get version from package.json (injected at build time)
-const APP_VERSION = '0.4.1';
 
 // Crypto addresses for donations
 const CRYPTO_ADDRESSES = {
@@ -122,6 +120,11 @@ const CryptoDonatePanel: React.FC<{ onClose?: () => void }> = () => {
 
 export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
     const [showDonatePanel, setShowDonatePanel] = useState(false);
+    const [appVersion, setAppVersion] = useState('0.0.0');
+
+    useEffect(() => {
+        getVersion().then(setAppVersion).catch(() => setAppVersion('0.5.7'));
+    }, []);
 
     if (!isOpen) return null;
 
@@ -161,7 +164,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                     </div>
 
                     <h1 className="text-2xl font-bold font-mono">AeroFTP</h1>
-                    <p className="text-cyan-200 text-sm mt-1 font-mono">v{APP_VERSION}</p>
+                    <p className="text-cyan-200 text-sm mt-1 font-mono">v{appVersion}</p>
                 </div>
 
                 {/* Content */}
