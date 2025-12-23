@@ -44,19 +44,29 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
     // Image source URL
     const imageSrc = file.blobUrl || file.content as string || '';
 
-    // Reset state when file changes
+    // Track previous src to avoid resetting on initial load
+    const prevSrcRef = React.useRef<string>(imageSrc);
+
+    // Reset state only when switching to a DIFFERENT image (not on initial load)
     useEffect(() => {
-        setZoom(1);
-        setRotation(0);
-        setPosition({ x: 0, y: 0 });
-        setIsFitToScreen(true);
-        setImageLoaded(false);
-        setImageError(false);
-    }, [file.path]);
+        // Only reset if we had a previous image and it's different
+        if (prevSrcRef.current && prevSrcRef.current !== imageSrc && imageSrc) {
+            setZoom(1);
+            setRotation(0);
+            setPosition({ x: 0, y: 0 });
+            setIsFitToScreen(true);
+            setImageLoaded(false);
+            setImageError(false);
+            setMetadata(null);
+        }
+        prevSrcRef.current = imageSrc;
+    }, [imageSrc]);
 
     // Handle image load
     const handleImageLoad = useCallback(() => {
+        // Set loaded first to hide spinner
         setImageLoaded(true);
+        // Then extract metadata
         if (imageRef.current) {
             setMetadata({
                 width: imageRef.current.naturalWidth,
