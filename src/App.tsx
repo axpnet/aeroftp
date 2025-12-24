@@ -93,6 +93,7 @@ const App: React.FC = () => {
   const [showSyncPanel, setShowSyncPanel] = useState(false);
   const [showCloudPanel, setShowCloudPanel] = useState(false);
   const [cloudSyncing, setCloudSyncing] = useState(false);  // AeroCloud sync in progress
+  const [isCloudActive, setIsCloudActive] = useState(false);  // AeroCloud is enabled (persistent)
   const [showConnectionScreen, setShowConnectionScreen] = useState(true);  // Initial connection screen, can be skipped
   const [showMenuBar, setShowMenuBar] = useState(true);  // Internal header visibility
   const [systemMenuVisible, setSystemMenuVisible] = useState(true);  // Native system menu bar
@@ -403,6 +404,38 @@ const App: React.FC = () => {
       catch { try { await loadLocalFiles(await downloadDir()); } catch { } }
     })();
   }, [loadLocalFiles]);
+
+  // Check AeroCloud state on mount and listen for status changes
+  useEffect(() => {
+    // Check initial cloud config
+    const checkCloudConfig = async () => {
+      try {
+        const config = await invoke<{ enabled: boolean }>('get_cloud_config');
+        setIsCloudActive(config.enabled);
+      } catch (e) {
+        console.error('Failed to check cloud config:', e);
+      }
+    };
+    checkCloudConfig();
+
+    // Listen for cloud sync status events
+    const unlistenStatus = listen<{ status: string; message: string }>('cloud-sync-status', (event) => {
+      const { status, message } = event.payload;
+      if (status === 'active') {
+        setCloudSyncing(true);
+        setIsCloudActive(true);
+      } else if (status === 'idle') {
+        setCloudSyncing(false);
+      } else if (status === 'error') {
+        setCloudSyncing(false);
+      } else if (status === 'disabled') {
+        setCloudSyncing(false);
+        setIsCloudActive(false);
+      }
+    });
+
+    return () => { unlistenStatus.then(fn => fn()); };
+  }, []);
 
   // FTP operations
   const connectToFtp = async () => {
@@ -1763,7 +1796,7 @@ const App: React.FC = () => {
         onToggleDevTools={() => setDevToolsOpen(!devToolsOpen)}
         onToggleSync={() => setShowSyncPanel(true)}
         onToggleCloud={() => setShowCloudPanel(true)}
-        cloudEnabled={showCloudPanel}
+        cloudEnabled={isCloudActive}
         cloudSyncing={cloudSyncing}
       />
     </div>

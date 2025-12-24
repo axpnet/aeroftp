@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Instant;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, State, Manager};
 use tokio::sync::Mutex;
 use tracing::{info, warn, error};
 
@@ -1360,6 +1360,8 @@ pub fn run() {
             .level(log::LevelFilter::Info)
             .build())
         .setup(|app| {
+            use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState};
+            
             // Create menu items
             let quit = MenuItem::with_id(app, "quit", "Quit AeroFTP", true, Some("CmdOrCtrl+Q"))?;
             let about = MenuItem::with_id(app, "about", "About AeroFTP", true, None::<&str>)?;
@@ -1435,6 +1437,72 @@ pub fn run() {
             
             let menu = Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu, &help_menu])?;
             app.set_menu(menu)?;
+            
+            // ============ System Tray Icon ============
+            // Create tray menu
+            let tray_sync_now = MenuItem::with_id(app, "tray_sync_now", "Sync Now", true, None::<&str>)?;
+            let tray_pause = MenuItem::with_id(app, "tray_pause", "Pause Sync", true, None::<&str>)?;
+            let tray_open_folder = MenuItem::with_id(app, "tray_open_folder", "Open Cloud Folder", true, None::<&str>)?;
+            let tray_separator = PredefinedMenuItem::separator(app)?;
+            let tray_show = MenuItem::with_id(app, "tray_show", "Show AeroFTP", true, None::<&str>)?;
+            let tray_quit = MenuItem::with_id(app, "tray_quit", "Quit", true, None::<&str>)?;
+            
+            let tray_menu = Menu::with_items(app, &[
+                &tray_sync_now,
+                &tray_pause,
+                &tray_separator,
+                &tray_open_folder,
+                &PredefinedMenuItem::separator(app)?,
+                &tray_show,
+                &tray_quit,
+            ])?;
+            
+            // Build tray icon using the app's default icon
+            let icon = app.default_window_icon()
+                .cloned()
+                .expect("Failed to load tray icon - ensure icon is set in tauri.conf.json");
+            
+            let _tray = TrayIconBuilder::new()
+                .icon(icon)
+                .tooltip("AeroCloud - Idle")
+                .menu(&tray_menu)
+                .on_menu_event(|app, event| {
+                    let id = event.id().as_ref();
+                    info!("Tray menu event: {}", id);
+                    match id {
+                        "tray_sync_now" => {
+                            let _ = app.emit("menu-event", "cloud_sync_now");
+                        }
+                        "tray_pause" => {
+                            let _ = app.emit("menu-event", "cloud_pause");
+                        }
+                        "tray_open_folder" => {
+                            let _ = app.emit("menu-event", "cloud_open_folder");
+                        }
+                        "tray_show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "tray_quit" => {
+                            std::process::exit(0);
+                        }
+                        _ => {}
+                    }
+                })
+                .on_tray_icon_event(|tray, event| {
+                    // Click on tray icon shows the window
+                    if let tauri::tray::TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                        if let Some(window) = tray.app_handle().get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+            
+            info!("System tray icon initialized");
             
             Ok(())
         })

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { listen, emit } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import {
     Cloud, CloudOff, CloudUpload, CloudDownload, RefreshCw,
@@ -476,6 +476,8 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ isOpen, onClose }) => {
     const handleSetupComplete = (newConfig: CloudConfig) => {
         setConfig(newConfig);
         setStatus({ type: 'idle' });
+        // Notify parent that cloud is now active
+        emit('cloud-sync-status', { status: 'active', message: 'AeroCloud enabled' });
         console.log('AeroCloud enabled successfully!', 'success');
     };
 
@@ -520,9 +522,12 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ isOpen, onClose }) => {
 
     const handleDisable = async () => {
         try {
+            await stopBackgroundSync();
             await invoke('enable_aerocloud', { enabled: false });
             setConfig(prev => prev ? { ...prev, enabled: false } : null);
             setStatus({ type: 'not_configured' });
+            // Notify parent that cloud is now disabled
+            emit('cloud-sync-status', { status: 'disabled', message: 'AeroCloud disabled' });
             console.log('AeroCloud disabled', 'info');
         } catch (error) {
             console.log(`Failed to disable: ${error}`, 'error');
