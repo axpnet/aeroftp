@@ -1741,15 +1741,16 @@ pub fn run() {
             let _ = app.emit("menu-event", id);
         })
         .on_window_event(|window, event| {
-            // Hide window instead of closing when cloud sync may be active
+            // Hide window instead of closing when AeroCloud is enabled
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // Check if background sync is running
-                if BACKGROUND_SYNC_RUNNING.load(Ordering::SeqCst) {
-                    info!("Window close requested, hiding to tray (background sync active)");
+                // Check if AeroCloud is enabled (should stay in tray)
+                let cloud_config = cloud_config::load_cloud_config();
+                if cloud_config.enabled {
+                    info!("Window close requested, hiding to tray (AeroCloud enabled)");
                     let _ = window.hide();
                     api.prevent_close();
                 } else {
-                    info!("Window close requested, no background sync, exiting");
+                    info!("Window close requested, AeroCloud not enabled, exiting");
                 }
             }
         })
