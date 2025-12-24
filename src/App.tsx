@@ -611,6 +611,79 @@ const App: React.FC = () => {
     setIsConnected(false);
   };
 
+  // Handle click on Cloud Tab - auto-connect to cloud server profile
+  const handleCloudTabClick = async () => {
+    try {
+      // Get cloud config to know which server profile and folders
+      const cloudConfig = await invoke<{
+        enabled: boolean;
+        local_folder: string;
+        remote_folder: string;
+        server_profile: string;
+      }>('get_cloud_config');
+
+      if (!cloudConfig.enabled) {
+        setShowCloudPanel(true);
+        return;
+      }
+
+      // Get saved servers from localStorage
+      const savedServersStr = localStorage.getItem('aeroftp-saved-servers');
+      if (!savedServersStr) {
+        toast.error('No saved servers', 'Please save your server first');
+        setShowCloudPanel(true);
+        return;
+      }
+
+      const savedServers = JSON.parse(savedServersStr);
+      const cloudServer = savedServers.find((s: { name: string }) => s.name === cloudConfig.server_profile);
+
+      if (!cloudServer) {
+        toast.error('Server not found', `Server profile "${cloudConfig.server_profile}" not found`);
+        setShowCloudPanel(true);
+        return;
+      }
+
+      // Build connection params
+      const serverString = cloudServer.port && cloudServer.port !== 21
+        ? `${cloudServer.host}:${cloudServer.port}`
+        : cloudServer.host;
+
+      const params = {
+        server: serverString,
+        username: cloudServer.username || '',
+        password: cloudServer.password || '',
+      };
+
+      // Connect
+      setLoading(true);
+      toast.info('Connecting', `Connecting to ${cloudConfig.server_profile}...`);
+
+      await invoke('connect_ftp', { params });
+      setIsConnected(true);
+      setConnectionParams(params);
+
+      // Navigate to cloud folders
+      // Remote: navigate to cloud remote folder
+      const remoteResponse: FileListResponse = await invoke('change_directory', { path: cloudConfig.remote_folder });
+      setRemoteFiles(remoteResponse.files);
+      setCurrentRemotePath(remoteResponse.current_path);
+
+      // Local: navigate to cloud local folder
+      const localFiles: LocalFile[] = await invoke('get_local_files', { path: cloudConfig.local_folder });
+      setLocalFiles(localFiles);
+      setCurrentLocalPath(cloudConfig.local_folder);
+
+      toast.success('Connected', `Connected to AeroCloud (${cloudConfig.server_profile})`);
+
+    } catch (error) {
+      toast.error('Connection Failed', String(error));
+      setShowCloudPanel(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const changeRemoteDirectory = async (path: string) => {
     try {
       const response: FileListResponse = await invoke('change_directory', { path });
@@ -1278,7 +1351,7 @@ const App: React.FC = () => {
                   active: isCloudActive,
                   serverName: cloudServerName || 'AeroCloud'
                 } : undefined}
-                onCloudTabClick={() => setShowCloudPanel(true)}
+                onCloudTabClick={handleCloudTabClick}
               />
             )}
             {/* Toolbar */}
