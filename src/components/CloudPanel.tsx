@@ -537,6 +537,78 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ isOpen, onClose }) => {
         );
     }
 
+    // Show settings panel
+    if (showSettings) {
+        return (
+            <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center backdrop-blur-sm" onClick={onClose}>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-semibold flex items-center gap-2"><Settings className="text-cyan-500" /> AeroCloud Settings</h2>
+                        <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X size={20} /></button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Local Folder</label>
+                            <input
+                                type="text"
+                                value={config?.local_folder || ''}
+                                readOnly
+                                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Remote Folder</label>
+                            <input
+                                type="text"
+                                value={config?.remote_folder || '/cloud/'}
+                                onChange={e => setConfig(prev => prev ? { ...prev, remote_folder: e.target.value } : null)}
+                                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
+                                placeholder="/cloud/"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Server Profile</label>
+                            <input
+                                type="text"
+                                value={config?.server_profile || ''}
+                                readOnly
+                                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                            <button
+                                onClick={async () => {
+                                    if (config) {
+                                        try {
+                                            await invoke('save_cloud_config_cmd', { config });
+                                            setShowSettings(false);
+                                            console.log('Settings saved!');
+                                        } catch (e) {
+                                            console.error('Failed to save settings:', e);
+                                        }
+                                    }
+                                }}
+                                className="flex-1 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-medium"
+                            >
+                                Save Settings
+                            </button>
+                            <button
+                                onClick={() => setShowSettings(false)}
+                                className="flex-1 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // Show dashboard
     return (
         <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center backdrop-blur-sm" onClick={onClose}>
