@@ -1497,7 +1497,7 @@ const App: React.FC = () => {
                               {file.name}
                             </td>
                             <td className="px-4 py-2 text-sm text-gray-500">{file.size !== null ? formatBytes(file.size) : '-'}</td>
-                            <td className="px-4 py-2 text-sm text-gray-500">{formatDate(file.modified)}</td>
+                            <td className="px-4 py-2 text-xs text-gray-500">{formatDate(file.modified)}</td>
                           </tr>
                         ))}
                       </tbody>
