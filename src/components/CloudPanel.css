@@ -18,8 +18,13 @@
 
 /* Animations */
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spin {
@@ -27,24 +32,50 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Setup Wizard */
 .cloud-wizard {
   max-width: 500px;
-  margin: 2rem auto;
-  padding: 2rem;
+  margin: 0 auto;
+  padding: 1.5rem;
   background: var(--bg-secondary);
   border-radius: 16px;
   border: 1px solid var(--border-color);
   animation: slideUp 0.3s ease-out;
+  /* Hide scrollbar */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.cloud-wizard::-webkit-scrollbar {
+  display: none;
+}
+
+/* Wizard content with fixed height for uniformity */
+.wizard-content {
+  min-height: 200px;
 }
 
 .wizard-header {
@@ -134,7 +165,7 @@
   margin: 0 0 0.5rem;
 }
 
-.wizard-step > p {
+.wizard-step>p {
   color: var(--text-secondary);
   font-size: 0.875rem;
   margin: 0 0 1.5rem;
