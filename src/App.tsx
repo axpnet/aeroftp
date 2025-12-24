@@ -94,6 +94,7 @@ const App: React.FC = () => {
   const [showCloudPanel, setShowCloudPanel] = useState(false);
   const [cloudSyncing, setCloudSyncing] = useState(false);  // AeroCloud sync in progress
   const [isCloudActive, setIsCloudActive] = useState(false);  // AeroCloud is enabled (persistent)
+  const [cloudServerName, setCloudServerName] = useState<string>('');  // Cloud server profile name
   const [showConnectionScreen, setShowConnectionScreen] = useState(true);  // Initial connection screen, can be skipped
   const [showMenuBar, setShowMenuBar] = useState(true);  // Internal header visibility
   const [systemMenuVisible, setSystemMenuVisible] = useState(true);  // Native system menu bar
@@ -410,8 +411,11 @@ const App: React.FC = () => {
     // Check initial cloud config
     const checkCloudConfig = async () => {
       try {
-        const config = await invoke<{ enabled: boolean }>('get_cloud_config');
+        const config = await invoke<{ enabled: boolean; server_profile?: string }>('get_cloud_config');
         setIsCloudActive(config.enabled);
+        if (config.server_profile) {
+          setCloudServerName(config.server_profile);
+        }
       } catch (e) {
         console.error('Failed to check cloud config:', e);
       }
@@ -1214,14 +1218,21 @@ const App: React.FC = () => {
           />
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">
-            {/* Session Tabs - visible when there are sessions */}
-            {sessions.length > 0 && (
+            {/* Session Tabs - visible when there are sessions or cloud is enabled */}
+            {(sessions.length > 0 || isCloudActive) && (
               <SessionTabs
                 sessions={sessions}
                 activeSessionId={activeSessionId}
                 onTabClick={switchSession}
                 onTabClose={closeSession}
                 onNewTab={handleNewTabFromSavedServer}
+                cloudTab={isCloudActive ? {
+                  enabled: true,
+                  syncing: cloudSyncing,
+                  active: isCloudActive,
+                  serverName: cloudServerName || 'AeroCloud'
+                } : undefined}
+                onCloudTabClick={() => setShowCloudPanel(true)}
               />
             )}
             {/* Toolbar */}

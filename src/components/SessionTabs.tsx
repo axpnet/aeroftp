@@ -1,6 +1,13 @@
 import * as React from 'react';
-import { X, Plus, Loader2, Wifi, WifiOff, Database } from 'lucide-react';
+import { X, Plus, Loader2, Wifi, WifiOff, Database, Cloud, CloudOff } from 'lucide-react';
 import { FtpSession, SessionStatus } from '../types';
+
+interface CloudTabState {
+    enabled: boolean;
+    syncing: boolean;
+    active: boolean;  // background sync running
+    serverName?: string;
+}
 
 interface SessionTabsProps {
     sessions: FtpSession[];
@@ -8,6 +15,9 @@ interface SessionTabsProps {
     onTabClick: (sessionId: string) => void;
     onTabClose: (sessionId: string) => void;
     onNewTab: () => void;
+    // Cloud tab props
+    cloudTab?: CloudTabState;
+    onCloudTabClick?: () => void;
 }
 
 const statusConfig: Record<SessionStatus, { icon: React.ReactNode; color: string; title: string }> = {
@@ -23,11 +33,60 @@ export const SessionTabs: React.FC<SessionTabsProps> = ({
     onTabClick,
     onTabClose,
     onNewTab,
+    cloudTab,
+    onCloudTabClick,
 }) => {
-    if (sessions.length === 0) return null;
+    const showTabs = sessions.length > 0 || (cloudTab?.enabled);
+
+    if (!showTabs) return null;
 
     return (
         <div className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+            {/* Cloud Tab - Special tab for AeroCloud */}
+            {cloudTab?.enabled && (
+                <div
+                    className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all min-w-0 max-w-[200px] ${cloudTab.active || cloudTab.syncing
+                            ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 dark:from-cyan-900/40 dark:to-blue-900/40 border border-cyan-400/30'
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-700/50'
+                        }`}
+                    onClick={onCloudTabClick}
+                    title={cloudTab.syncing ? 'Syncing...' : cloudTab.active ? 'Background sync active' : 'AeroCloud (click to open)'}
+                >
+                    {/* Cloud status indicator */}
+                    <span className={`shrink-0 ${cloudTab.syncing
+                            ? 'text-cyan-500 animate-pulse'
+                            : cloudTab.active
+                                ? 'text-cyan-500'
+                                : 'text-gray-400'
+                        }`}>
+                        {cloudTab.active || cloudTab.syncing ? (
+                            <Cloud size={14} className={cloudTab.syncing ? 'animate-bounce' : ''} />
+                        ) : (
+                            <CloudOff size={14} />
+                        )}
+                    </span>
+
+                    {/* Cloud name */}
+                    <span className={`truncate text-sm ${cloudTab.active || cloudTab.syncing
+                            ? 'font-medium text-cyan-700 dark:text-cyan-300'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                        {cloudTab.serverName || 'AeroCloud'}
+                    </span>
+
+                    {/* Syncing indicator */}
+                    {cloudTab.syncing && (
+                        <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-cyan-500 animate-ping" />
+                    )}
+                </div>
+            )}
+
+            {/* Separator between Cloud and FTP sessions */}
+            {cloudTab?.enabled && sessions.length > 0 && (
+                <div className="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1" />
+            )}
+
+            {/* FTP Session Tabs */}
             {sessions.map((session) => {
                 const isActive = session.id === activeSessionId;
                 const status = statusConfig[session.status];
@@ -36,8 +95,8 @@ export const SessionTabs: React.FC<SessionTabsProps> = ({
                     <div
                         key={session.id}
                         className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all min-w-0 max-w-[200px] ${isActive
-                                ? 'bg-white dark:bg-gray-700 shadow-sm'
-                                : 'hover:bg-gray-200 dark:hover:bg-gray-700/50'
+                            ? 'bg-white dark:bg-gray-700 shadow-sm'
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-700/50'
                             }`}
                         onClick={() => onTabClick(session.id)}
                     >
@@ -79,3 +138,4 @@ export const SessionTabs: React.FC<SessionTabsProps> = ({
 };
 
 export default SessionTabs;
+
