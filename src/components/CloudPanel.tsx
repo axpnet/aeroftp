@@ -385,7 +385,23 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ isOpen, onClose }) => {
     const [status, setStatus] = useState<CloudSyncStatus>({ type: 'not_configured' });
     const [isLoading, setIsLoading] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
-    const savedServers: { name: string; host: string }[] = []; // TODO: Load from saved servers
+
+    // Load saved servers from localStorage (same key as SavedServers component)
+    const savedServers = React.useMemo(() => {
+        try {
+            const stored = localStorage.getItem('aeroftp-saved-servers');
+            if (stored) {
+                const servers = JSON.parse(stored);
+                return servers.map((s: { name?: string; host: string }) => ({
+                    name: s.name || s.host,
+                    host: s.host
+                }));
+            }
+        } catch (e) {
+            console.error('Failed to load saved servers:', e);
+        }
+        return [];
+    }, [isOpen]); // Reload when panel opens
 
     // Load config on mount
     useEffect(() => {
