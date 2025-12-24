@@ -1222,6 +1222,38 @@ fn update_conflict_strategy(strategy: ConflictStrategy) -> Result<(), String> {
     cloud_config::save_cloud_config(&config)
 }
 
+#[tauri::command]
+async fn trigger_cloud_sync(state: tauri::State<'_, AppState>) -> Result<String, String> {
+    let config = cloud_config::load_cloud_config();
+    
+    if !config.enabled {
+        return Err("AeroCloud is not configured. Please set it up first.".to_string());
+    }
+    
+    // Get FTP manager and perform sync
+    let mut ftp_manager = state.ftp_manager.lock().await;
+    
+    if !ftp_manager.is_connected() {
+        return Err("Not connected to FTP server. Please connect first.".to_string());
+    }
+    
+    // Create cloud service and run sync
+    let cloud_service = cloud_service::CloudService::new();
+    cloud_service.init(config.clone()).await;
+    
+    match cloud_service.perform_full_sync(&mut ftp_manager).await {
+        Ok(result) => {
+            let summary = format!(
+                "Sync complete: {} uploaded, {} downloaded, {} conflicts",
+                result.uploaded, result.downloaded, result.conflicts
+            );
+            info!("{}", summary);
+            Ok(summary)
+        }
+        Err(e) => Err(format!("Sync failed: {}", e))
+    }
+}
+
 // ============ App Entry Point ============
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1364,6 +1396,7 @@ pub fn run() {
             enable_aerocloud,
             get_default_cloud_folder,
             update_conflict_strategy,
+            trigger_cloud_sync,
             // AI commands
             ai_chat,
             ai_test_provider,

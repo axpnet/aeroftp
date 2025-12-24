@@ -50,8 +50,8 @@ interface SyncResult {
 }
 
 interface CloudPanelProps {
-    savedServers: { name: string; host: string; }[];
-    onToast: (message: string, type: 'success' | 'error' | 'info') => void;
+    isOpen: boolean;
+    onClose: () => void;
 }
 
 // Setup Wizard Component
@@ -380,11 +380,12 @@ const CloudDashboard: React.FC<{
 };
 
 // Main CloudPanel Component
-export const CloudPanel: React.FC<CloudPanelProps> = ({ savedServers, onToast }) => {
+export const CloudPanel: React.FC<CloudPanelProps> = ({ isOpen, onClose }) => {
     const [config, setConfig] = useState<CloudConfig | null>(null);
     const [status, setStatus] = useState<CloudSyncStatus>({ type: 'not_configured' });
     const [isLoading, setIsLoading] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
+    const savedServers: { name: string; host: string }[] = []; // TODO: Load from saved servers
 
     // Load config on mount
     useEffect(() => {
@@ -400,9 +401,9 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ savedServers, onToast })
         const unlistenComplete = listen<SyncResult>('cloud_sync_complete', (event) => {
             const result = event.payload;
             if (result.errors.length > 0) {
-                onToast(`Sync completed with ${result.errors.length} errors`, 'error');
+                console.log(`Sync completed with ${result.errors.length} errors`, 'error');
             } else {
-                onToast(
+                console.log(
                     `Synced: ↑${result.uploaded} ↓${result.downloaded} files`,
                     'success'
                 );
@@ -413,7 +414,7 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ savedServers, onToast })
             unlisten.then((f) => f());
             unlistenComplete.then((f) => f());
         };
-    }, [onToast]);
+    }, []);
 
     const loadConfig = async () => {
         setIsLoading(true);
@@ -436,28 +437,28 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ savedServers, onToast })
     const handleSetupComplete = (newConfig: CloudConfig) => {
         setConfig(newConfig);
         setStatus({ type: 'idle' });
-        onToast('AeroCloud enabled successfully!', 'success');
+        console.log('AeroCloud enabled successfully!', 'success');
     };
 
     const handleSyncNow = async () => {
-        onToast('Starting sync...', 'info');
+        console.log('Starting sync...', 'info');
         try {
             // TODO: Invoke sync command
             // For now, just update status
             setStatus({ type: 'syncing', current_file: 'Scanning...', progress: 0 });
         } catch (error) {
-            onToast(`Sync failed: ${error}`, 'error');
+            console.log(`Sync failed: ${error}`, 'error');
         }
     };
 
     const handlePause = async () => {
         setStatus({ type: 'paused' });
-        onToast('Sync paused', 'info');
+        console.log('Sync paused', 'info');
     };
 
     const handleResume = async () => {
         setStatus({ type: 'idle', last_sync: config?.last_sync || undefined });
-        onToast('Sync resumed', 'info');
+        console.log('Sync resumed', 'info');
     };
 
     const handleDisable = async () => {
@@ -465,9 +466,9 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ savedServers, onToast })
             await invoke('enable_aerocloud', { enabled: false });
             setConfig(prev => prev ? { ...prev, enabled: false } : null);
             setStatus({ type: 'not_configured' });
-            onToast('AeroCloud disabled', 'info');
+            console.log('AeroCloud disabled', 'info');
         } catch (error) {
-            onToast(`Failed to disable: ${error}`, 'error');
+            console.log(`Failed to disable: ${error}`, 'error');
         }
     };
 
@@ -476,16 +477,23 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ savedServers, onToast })
             try {
                 await invoke('open_in_file_manager', { path: config.local_folder });
             } catch (error) {
-                onToast(`Failed to open folder: ${error}`, 'error');
+                console.log(`Failed to open folder: ${error}`, 'error');
             }
         }
     };
 
+    // Don't render if not open
+    if (!isOpen) return null;
+
     if (isLoading) {
         return (
-            <div className="cloud-panel loading">
-                <Loader2 className="spin" size={32} />
-                <p>Loading AeroCloud...</p>
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-center gap-3">
+                        <Loader2 className="animate-spin" size={32} />
+                        <p>Loading AeroCloud...</p>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -493,29 +501,41 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ savedServers, onToast })
     // Show setup wizard if not configured
     if (!config?.enabled) {
         return (
-            <div className="cloud-panel">
-                <SetupWizard
-                    savedServers={savedServers}
-                    onComplete={handleSetupComplete}
-                    onCancel={() => { }}
-                />
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-semibold flex items-center gap-2"><Cloud className="text-cyan-500" /> AeroCloud Setup</h2>
+                        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X size={20} /></button>
+                    </div>
+                    <SetupWizard
+                        savedServers={savedServers}
+                        onComplete={handleSetupComplete}
+                        onCancel={onClose}
+                    />
+                </div>
             </div>
         );
     }
 
     // Show dashboard
     return (
-        <div className="cloud-panel">
-            <CloudDashboard
-                config={config}
-                status={status}
-                onSyncNow={handleSyncNow}
-                onPause={handlePause}
-                onResume={handleResume}
-                onDisable={handleDisable}
-                onOpenFolder={handleOpenFolder}
-                onSettings={() => setShowSettings(true)}
-            />
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold flex items-center gap-2"><Cloud className="text-cyan-500" /> AeroCloud</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X size={20} /></button>
+                </div>
+                <CloudDashboard
+                    config={config}
+                    status={status}
+                    onSyncNow={handleSyncNow}
+                    onPause={handlePause}
+                    onResume={handleResume}
+                    onDisable={handleDisable}
+                    onOpenFolder={handleOpenFolder}
+                    onSettings={() => setShowSettings(true)}
+                />
+            </div>
         </div>
     );
 };

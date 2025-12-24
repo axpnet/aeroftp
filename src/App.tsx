@@ -34,6 +34,7 @@ import { CustomTitlebar } from './components/CustomTitlebar';
 import { DevToolsV2, PreviewFile, isPreviewable } from './components/DevTools';
 import { UniversalPreview, PreviewFileData, getPreviewCategory, isPreviewable as isMediaPreviewable } from './components/Preview';
 import { SyncPanel } from './components/SyncPanel';
+import { CloudPanel } from './components/CloudPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import {
   Sun, Moon, Monitor, FolderUp, RefreshCw, FolderPlus, FolderOpen,
@@ -90,6 +91,7 @@ const App: React.FC = () => {
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [showSyncPanel, setShowSyncPanel] = useState(false);
+  const [showCloudPanel, setShowCloudPanel] = useState(false);
   const [showConnectionScreen, setShowConnectionScreen] = useState(true);  // Initial connection screen, can be skipped
   const [showMenuBar, setShowMenuBar] = useState(true);  // Internal header visibility
   const [systemMenuVisible, setSystemMenuVisible] = useState(true);  // Native system menu bar
@@ -1093,6 +1095,10 @@ const App: React.FC = () => {
           await loadLocalFiles(currentLocalPath);
         }}
       />
+      <CloudPanel
+        isOpen={showCloudPanel}
+        onClose={() => setShowCloudPanel(false)}
+      />
 
       {/* Header - can be hidden */}
       {showMenuBar && (
@@ -1755,6 +1761,8 @@ const App: React.FC = () => {
         devToolsOpen={devToolsOpen}
         onToggleDevTools={() => setDevToolsOpen(!devToolsOpen)}
         onToggleSync={() => setShowSyncPanel(true)}
+        onToggleCloud={() => setShowCloudPanel(true)}
+        cloudEnabled={showCloudPanel}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Globe, HardDrive, Wifi, WifiOff, Code, FolderSync } from 'lucide-react';
+import { Globe, HardDrive, Wifi, WifiOff, Code, FolderSync, Cloud } from 'lucide-react';
 
 interface StatusBarProps {
     isConnected: boolean;
@@ -10,8 +10,10 @@ interface StatusBarProps {
     localFileCount?: number;
     activePanel: 'remote' | 'local';
     devToolsOpen?: boolean;
+    cloudEnabled?: boolean;
     onToggleDevTools?: () => void;
     onToggleSync?: () => void;
+    onToggleCloud?: () => void;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -23,8 +25,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     localFileCount = 0,
     activePanel,
     devToolsOpen = false,
+    cloudEnabled = false,
     onToggleDevTools,
     onToggleSync,
+    onToggleCloud,
 }) => {
     return (
         <div className="h-7 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 select-none shrink-0">
@@ -86,6 +90,21 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
                 {/* Separator */}
                 <div className="w-px h-4 bg-gray-300 dark:bg-gray-600" />
+
+                {/* Cloud Button */}
+                {onToggleCloud && (
+                    <button
+                        onClick={onToggleCloud}
+                        className={`flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors ${cloudEnabled
+                                ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400'
+                                : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+                            }`}
+                        title="AeroCloud - Personal Cloud Sync"
+                    >
+                        <Cloud size={12} />
+                        <span>Cloud</span>
+                    </button>
+                )}
 
                 {/* Sync Button */}
                 {onToggleSync && isConnected && (
