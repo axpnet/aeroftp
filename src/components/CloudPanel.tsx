@@ -56,7 +56,7 @@ interface CloudPanelProps {
 
 // Setup Wizard Component
 const SetupWizard: React.FC<{
-    savedServers: { name: string; host: string; }[];
+    savedServers: { name: string; host: string; initialPath?: string }[];
     onComplete: (config: CloudConfig) => void;
     onCancel: () => void;
 }> = ({ savedServers, onComplete, onCancel }) => {
@@ -157,7 +157,19 @@ const SetupWizard: React.FC<{
                             <label>Server Profile:</label>
                             <select
                                 value={serverProfile}
-                                onChange={(e) => setServerProfile(e.target.value)}
+                                onChange={(e) => {
+                                    const selectedName = e.target.value;
+                                    setServerProfile(selectedName);
+                                    // Auto-fill remoteFolder from saved server's initialPath
+                                    const server = savedServers.find(s => s.name === selectedName);
+                                    if (server?.initialPath) {
+                                        // Use initialPath + /cloud/ or just the path with /cloud/ appended
+                                        const basePath = server.initialPath.endsWith('/')
+                                            ? server.initialPath.slice(0, -1)
+                                            : server.initialPath;
+                                        setRemoteFolder(`${basePath}/cloud/`);
+                                    }
+                                }}
                             >
                                 <option value="">Select a saved server...</option>
                                 {savedServers.map((server) => (
@@ -392,9 +404,10 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ isOpen, onClose }) => {
             const stored = localStorage.getItem('aeroftp-saved-servers');
             if (stored) {
                 const servers = JSON.parse(stored);
-                return servers.map((s: { name?: string; host: string }) => ({
+                return servers.map((s: { name?: string; host: string; initialPath?: string }) => ({
                     name: s.name || s.host,
-                    host: s.host
+                    host: s.host,
+                    initialPath: s.initialPath || '' // Include initialPath!
                 }));
             }
         } catch (e) {
