@@ -24,6 +24,7 @@ import { ToastContainer, useToast } from './components/Toast';
 import { Logo } from './components/Logo';
 import { ContextMenu, useContextMenu, ContextMenuItem } from './components/ContextMenu';
 import { SavedServers } from './components/SavedServers';
+import { ConnectionScreen } from './components/ConnectionScreen';
 import { AboutDialog } from './components/AboutDialog';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -1131,104 +1132,46 @@ const App: React.FC = () => {
 
       <main className="flex-1 p-6 overflow-auto">
         {!isConnected && showConnectionScreen ? (
-          <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
-            {/* Quick Connect */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
-              <h2 className="text-xl font-semibold mb-4">Quick Connect</h2>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Server</label>
-                  <input type="text" value={connectionParams.server} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConnectionParams({ ...connectionParams, server: e.target.value })} className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl" placeholder="ftp.example.com:21" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Username</label>
-                  <input type="text" value={connectionParams.username} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConnectionParams({ ...connectionParams, username: e.target.value })} className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl" placeholder="Username" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Password</label>
-                  <input type="password" value={connectionParams.password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConnectionParams({ ...connectionParams, password: e.target.value })} className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl" placeholder="Password" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Remote Directory</label>
-                  <input type="text" value={quickConnectDirs.remoteDir} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuickConnectDirs({ ...quickConnectDirs, remoteDir: e.target.value })} className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl" placeholder="/www (optional)" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Local Directory</label>
-                  <div className="flex gap-2">
-                    <input type="text" value={quickConnectDirs.localDir} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuickConnectDirs({ ...quickConnectDirs, localDir: e.target.value })} className="flex-1 px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl" placeholder="/home/user/projects (optional)" />
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const selected = await open({ directory: true, multiple: false, title: 'Select Local Directory' });
-                          if (selected && typeof selected === 'string') {
-                            setQuickConnectDirs({ ...quickConnectDirs, localDir: selected });
-                          }
-                        } catch (e) { console.error('Folder picker error:', e); }
-                      }}
-                      className="px-4 py-3 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-xl transition-colors"
-                      title="Browse"
-                    >
-                      <FolderOpen size={18} />
-                    </button>
-                  </div>
-                </div>
-                <button onClick={connectToFtp} disabled={loading} className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium py-3 rounded-xl disabled:opacity-50">
-                  {loading ? 'Connecting...' : 'Connect'}
-                </button>
-              </div>
-            </div>
-            {/* Saved Servers */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
-              <SavedServers onConnect={async (params, initialPath, localInitialPath) => {
-                setConnectionParams(params);
-                setLoading(true);
-                try {
-                  await invoke('connect_ftp', { params });
-                  setIsConnected(true);
-                  toast.success('Connected', `Connected to ${params.server}`);
-                  // Navigate to initial remote path if specified
-                  if (initialPath) {
-                    await changeRemoteDirectory(initialPath);
-                  } else {
-                    await loadRemoteFiles();
-                  }
-                  // Navigate to local initial path if specified (per-project folder)
-                  if (localInitialPath) {
-                    await changeLocalDirectory(localInitialPath);
-                  }
-                  // Create session for multi-tab management
-                  createSession(
-                    params.server.split(':')[0], // Use hostname as server name
-                    params,
-                    initialPath || currentRemotePath,
-                    localInitialPath || currentLocalPath
-                  );
-                } catch (error) {
-                  toast.error('Connection Failed', String(error));
-                } finally {
-                  setLoading(false);
+          <ConnectionScreen
+            connectionParams={connectionParams}
+            quickConnectDirs={quickConnectDirs}
+            loading={loading}
+            onConnectionParamsChange={setConnectionParams}
+            onQuickConnectDirsChange={setQuickConnectDirs}
+            onConnect={connectToFtp}
+            onSavedServerConnect={async (params, initialPath, localInitialPath) => {
+              setConnectionParams(params);
+              setLoading(true);
+              try {
+                await invoke('connect_ftp', { params });
+                setIsConnected(true);
+                toast.success('Connected', `Connected to ${params.server}`);
+                if (initialPath) {
+                  await changeRemoteDirectory(initialPath);
+                } else {
+                  await loadRemoteFiles();
                 }
-              }} />
-            </div>
-
-            {/* Skip to File Manager Button */}
-            <div className="md:col-span-2 text-center mt-4">
-              <button
-                onClick={async () => {
-                  setShowConnectionScreen(false);
-                  setActivePanel('local');
-                  await loadLocalFiles(currentLocalPath || '/');
-                }}
-                className="group px-6 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-gray-600 dark:text-gray-300 transition-all hover:scale-105 flex items-center gap-2 mx-auto"
-              >
-                <HardDrive size={18} className="group-hover:text-blue-500 transition-colors" />
-                <span>Skip to File Manager</span>
-                <ChevronRight size={16} className="opacity-50 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <p className="text-xs text-gray-500 mt-2">Use as local file manager without FTP connection</p>
-            </div>
-          </div>
+                if (localInitialPath) {
+                  await changeLocalDirectory(localInitialPath);
+                }
+                createSession(
+                  params.server.split(':')[0],
+                  params,
+                  initialPath || currentRemotePath,
+                  localInitialPath || currentLocalPath
+                );
+              } catch (error) {
+                toast.error('Connection Failed', String(error));
+              } finally {
+                setLoading(false);
+              }
+            }}
+            onSkipToFileManager={async () => {
+              setShowConnectionScreen(false);
+              setActivePanel('local');
+              await loadLocalFiles(currentLocalPath || '/');
+            }}
+          />
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">
             {/* Session Tabs - visible when there are sessions */}
