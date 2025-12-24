@@ -425,13 +425,19 @@ const App: React.FC = () => {
     // Listen for cloud sync status events
     const unlistenStatus = listen<{ status: string; message: string }>('cloud-sync-status', (event) => {
       const { status, message } = event.payload;
+      console.log('Cloud status:', status, message);
+
       if (status === 'active') {
-        setCloudSyncing(true);
+        // Sync completed, back to idle (active = enabled but not syncing)
+        setCloudSyncing(false);
         setIsCloudActive(true);
       } else if (status === 'idle') {
         setCloudSyncing(false);
+        setIsCloudActive(true);
       } else if (status === 'syncing') {
+        // Actually transferring files now
         setCloudSyncing(true);
+        setIsCloudActive(true);
       } else if (status === 'error') {
         setCloudSyncing(false);
         console.error('Cloud sync error:', message);

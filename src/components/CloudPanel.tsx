@@ -376,6 +376,14 @@ const CloudDashboard: React.FC<{
                         <span className="value">{formatLastSync(config.last_sync)}</span>
                     </div>
                 </div>
+
+                <div className="info-card">
+                    <Clock size={20} />
+                    <div>
+                        <span className="label">Sync Interval</span>
+                        <span className="value">{Math.round(config.sync_interval_secs / 60)} min</span>
+                    </div>
+                </div>
             </div>
 
             <div className="dashboard-actions">
