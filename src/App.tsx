@@ -471,6 +471,17 @@ const App: React.FC = () => {
         if (config.local_folder) {
           setCloudLocalFolder(config.local_folder);
         }
+
+        // Auto-start background sync if cloud is enabled
+        if (config.enabled) {
+          console.log('Cloud enabled, starting background sync...');
+          try {
+            await invoke('start_background_sync');
+            console.log('Background sync started');
+          } catch (syncError) {
+            console.log('Background sync start error (may already be running):', syncError);
+          }
+        }
       } catch (e) {
         console.error('Failed to check cloud config:', e);
       }
@@ -670,6 +681,8 @@ const App: React.FC = () => {
 
   // Handle click on Cloud Tab - auto-connect to cloud server profile
   const handleCloudTabClick = async () => {
+    console.log('Cloud Tab clicked');
+
     try {
       // Get cloud config to know which server profile and folders
       const cloudConfig = await invoke<{
@@ -679,8 +692,36 @@ const App: React.FC = () => {
         server_profile: string;
       }>('get_cloud_config');
 
+      console.log('Cloud config:', cloudConfig);
+
       if (!cloudConfig.enabled) {
         setShowCloudPanel(true);
+        return;
+      }
+
+      // If already connected, just trigger sync and navigate to cloud folders
+      if (isConnected) {
+        console.log('Already connected, just syncing and navigating...');
+        // Navigate to cloud folders
+        try {
+          const remoteResponse: FileListResponse = await invoke('change_directory', { path: cloudConfig.remote_folder });
+          setRemoteFiles(remoteResponse.files);
+          setCurrentRemotePath(remoteResponse.current_path);
+
+          const localFilesData: LocalFile[] = await invoke('get_local_files', { path: cloudConfig.local_folder });
+          setLocalFiles(localFilesData);
+          setCurrentLocalPath(cloudConfig.local_folder);
+        } catch (navError) {
+          console.log('Navigation error:', navError);
+        }
+
+        // Trigger sync
+        try {
+          await invoke('trigger_cloud_sync');
+          toast.info('Sync Started', 'Syncing cloud files...');
+        } catch (syncError) {
+          console.log('Sync error:', syncError);
+        }
         return;
       }
 
@@ -736,8 +777,9 @@ const App: React.FC = () => {
       // Trigger a sync after connecting to cloud
       try {
         await invoke('trigger_cloud_sync');
+        toast.info('Sync Started', 'Syncing cloud files...');
       } catch (e) {
-        console.log('Sync trigger skipped:', e);
+        console.log('Sync trigger error:', e);
       }
 
     } catch (error) {
