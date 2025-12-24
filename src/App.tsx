@@ -92,6 +92,7 @@ const App: React.FC = () => {
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [showSyncPanel, setShowSyncPanel] = useState(false);
   const [showCloudPanel, setShowCloudPanel] = useState(false);
+  const [cloudSyncing, setCloudSyncing] = useState(false);  // AeroCloud sync in progress
   const [showConnectionScreen, setShowConnectionScreen] = useState(true);  // Initial connection screen, can be skipped
   const [showMenuBar, setShowMenuBar] = useState(true);  // Internal header visibility
   const [systemMenuVisible, setSystemMenuVisible] = useState(true);  // Native system menu bar
@@ -1763,6 +1764,7 @@ const App: React.FC = () => {
         onToggleSync={() => setShowSyncPanel(true)}
         onToggleCloud={() => setShowCloudPanel(true)}
         cloudEnabled={showCloudPanel}
+        cloudSyncing={cloudSyncing}
       />
     </div>
   );

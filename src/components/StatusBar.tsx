@@ -11,6 +11,7 @@ interface StatusBarProps {
     activePanel: 'remote' | 'local';
     devToolsOpen?: boolean;
     cloudEnabled?: boolean;
+    cloudSyncing?: boolean;
     onToggleDevTools?: () => void;
     onToggleSync?: () => void;
     onToggleCloud?: () => void;
@@ -26,6 +27,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     activePanel,
     devToolsOpen = false,
     cloudEnabled = false,
+    cloudSyncing = false,
     onToggleDevTools,
     onToggleSync,
     onToggleCloud,
@@ -95,14 +97,17 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                 {onToggleCloud && (
                     <button
                         onClick={onToggleCloud}
-                        className={`flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors ${cloudEnabled
-                                ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400'
-                                : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+                        className={`flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors ${cloudSyncing
+                                ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-500'
+                                : cloudEnabled
+                                    ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400'
+                                    : 'hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                         title="AeroCloud - Personal Cloud Sync"
                     >
-                        <Cloud size={12} />
-                        <span>Cloud</span>
+                        <Cloud size={12} className={cloudSyncing ? 'animate-pulse' : ''} />
+                        <span>{cloudSyncing ? 'Syncing...' : 'Cloud'}</span>
+                        {cloudSyncing && <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-ping" />}
                     </button>
                 )}
 
