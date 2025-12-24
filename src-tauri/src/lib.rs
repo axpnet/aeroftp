@@ -11,6 +11,9 @@ use tracing::info;
 mod ftp;
 mod sync;
 mod ai;
+mod cloud_config;
+mod watcher;
+mod cloud_service;
 #[cfg(unix)]
 mod pty;
 
@@ -753,6 +756,7 @@ use sync::{
     CompareOptions, FileComparison, FileInfo,
     build_comparison_results, should_exclude,
 };
+use cloud_config::{CloudConfig, CloudSyncStatus, ConflictStrategy};
 use std::collections::HashMap;
 
 #[tauri::command]
@@ -1131,6 +1135,93 @@ async fn ai_execute_tool(
     }
 }
 
+// ============ AeroCloud Commands ============
+
+#[tauri::command]
+fn get_cloud_config() -> CloudConfig {
+    cloud_config::load_cloud_config()
+}
+
+#[tauri::command]
+fn save_cloud_config_cmd(config: CloudConfig) -> Result<(), String> {
+    cloud_config::save_cloud_config(&config)
+}
+
+#[tauri::command]
+async fn setup_aerocloud(
+    local_folder: String,
+    remote_folder: String,
+    server_profile: String,
+    sync_on_change: bool,
+    sync_interval_secs: u64,
+) -> Result<CloudConfig, String> {
+    let mut config = CloudConfig::default();
+    config.enabled = true;
+    config.local_folder = std::path::PathBuf::from(&local_folder);
+    config.remote_folder = remote_folder.clone();
+    config.server_profile = server_profile;
+    config.sync_on_change = sync_on_change;
+    config.sync_interval_secs = sync_interval_secs;
+    
+    // Validate configuration
+    cloud_config::validate_config(&config)?;
+    
+    // Ensure local cloud folder exists
+    cloud_config::ensure_cloud_folder(&config)?;
+    
+    // Save configuration
+    cloud_config::save_cloud_config(&config)?;
+    
+    info!("AeroCloud setup complete: local={}, remote={}", local_folder, remote_folder);
+    
+    Ok(config)
+}
+
+#[tauri::command]
+fn get_cloud_status() -> CloudSyncStatus {
+    let config = cloud_config::load_cloud_config();
+    
+    if !config.enabled {
+        return CloudSyncStatus::NotConfigured;
+    }
+    
+    CloudSyncStatus::Idle {
+        last_sync: config.last_sync,
+        next_sync: None, // Will be calculated by sync service
+    }
+}
+
+#[tauri::command]
+fn enable_aerocloud(enabled: bool) -> Result<CloudConfig, String> {
+    let mut config = cloud_config::load_cloud_config();
+    
+    if enabled {
+        // Validate before enabling
+        cloud_config::validate_config(&config)?;
+        cloud_config::ensure_cloud_folder(&config)?;
+    }
+    
+    config.enabled = enabled;
+    cloud_config::save_cloud_config(&config)?;
+    
+    info!("AeroCloud {}", if enabled { "enabled" } else { "disabled" });
+    
+    Ok(config)
+}
+
+#[tauri::command]
+fn get_default_cloud_folder() -> String {
+    let default_config = CloudConfig::default();
+    default_config.local_folder.to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn update_conflict_strategy(strategy: ConflictStrategy) -> Result<(), String> {
+    let mut config = cloud_config::load_cloud_config();
+    config.conflict_strategy = strategy;
+    cloud_config::save_cloud_config(&config)
+}
+
 // ============ App Entry Point ============
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1265,6 +1356,15 @@ pub fn run() {
             toggle_menu_bar,
             compare_directories,
             get_compare_options_default,
+            // AeroCloud commands
+            get_cloud_config,
+            save_cloud_config_cmd,
+            setup_aerocloud,
+            get_cloud_status,
+            enable_aerocloud,
+            get_default_cloud_folder,
+            update_conflict_strategy,
+            // AI commands
             ai_chat,
             ai_test_provider,
             ai_execute_tool,
