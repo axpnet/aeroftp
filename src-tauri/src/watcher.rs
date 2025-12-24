@@ -1,5 +1,8 @@
 // AeroCloud File System Watcher
 // Real-time monitoring of local cloud folder changes
+// NOTE: Prepared for Phase 5+ file watcher integration
+#![allow(dead_code)]
+#![allow(unused_imports)]
 
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use notify_debouncer_mini::{new_debouncer, DebouncedEvent, Debouncer};

@@ -1,5 +1,8 @@
 // AeroCloud Sync Service
 // Background synchronization between local and remote folders
+// NOTE: Some items prepared for Phase 5+ background sync loop
+#![allow(dead_code)]
+#![allow(unused_imports)]
 
 use crate::cloud_config::{CloudConfig, CloudSyncStatus, ConflictStrategy};
 use crate::ftp::FtpManager;

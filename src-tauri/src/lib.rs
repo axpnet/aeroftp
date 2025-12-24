@@ -1244,7 +1244,7 @@ async fn trigger_cloud_sync(state: tauri::State<'_, AppState>) -> Result<String,
     info!("FTP connected, starting sync...");
     
     // First, ensure remote folder exists and navigate to it
-    if let Err(e) = ftp_manager.change_dir(&config.remote_folder).await {
+    if let Err(_e) = ftp_manager.change_dir(&config.remote_folder).await {
         info!("Remote folder {} doesn't exist, creating it...", config.remote_folder);
         // Try to create the folder
         if let Err(e) = ftp_manager.mkdir(&config.remote_folder).await {
@@ -1279,7 +1279,6 @@ async fn trigger_cloud_sync(state: tauri::State<'_, AppState>) -> Result<String,
 // ============ Background Sync & Tray Commands ============
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 // Global flag to control background sync
 static BACKGROUND_SYNC_RUNNING: AtomicBool = AtomicBool::new(false);
@@ -1287,7 +1286,7 @@ static BACKGROUND_SYNC_RUNNING: AtomicBool = AtomicBool::new(false);
 #[tauri::command]
 async fn start_background_sync(
     app: AppHandle,
-    state: tauri::State<'_, AppState>,
+    _state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     if BACKGROUND_SYNC_RUNNING.load(Ordering::SeqCst) {
         return Ok("Background sync already running".to_string());

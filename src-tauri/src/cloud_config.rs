@@ -1,5 +1,6 @@
 // AeroCloud Configuration Module
 // Persistent cloud sync configuration storage
+#![allow(dead_code)]
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -124,6 +125,7 @@ impl Default for CloudSyncStatus {
 }
 
 /// Cloud sync statistics
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CloudStats {
     pub files_synced: u64,
