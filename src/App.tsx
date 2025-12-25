@@ -944,6 +944,7 @@ const App: React.FC = () => {
     try {
       const filePath = isRemote ? (file as RemoteFile).path : (file as LocalFile).path;
       let blobUrl: string | undefined;
+      let content: string | undefined;
 
       const category = getPreviewCategory(file.name);
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
@@ -970,13 +971,22 @@ const App: React.FC = () => {
       };
 
       if (!isRemote) {
-        // LOCAL FILES: Load as base64 via Rust command
-        // asset:// protocol returns 403 Forbidden, so we use read_local_file_base64 instead
-        const base64 = await invoke<string>('read_local_file_base64', { path: filePath });
-        blobUrl = `data:${mimeMap[ext] || 'application/octet-stream'};base64,${base64}`;
+        // LOCAL FILES: Load based on category
+        if (category === 'text' || category === 'markdown') {
+          // For text files, load as string
+          content = await invoke<string>('read_local_file', { path: filePath });
+        } else {
+          // For binary files (images, etc.), load as base64
+          const base64 = await invoke<string>('read_local_file_base64', { path: filePath });
+          blobUrl = `data:${mimeMap[ext] || 'application/octet-stream'};base64,${base64}`;
+        }
       } else {
-        // REMOTE FILES: Download as base64 for images (audio/video need streaming - future)
-        if (category === 'image') {
+        // REMOTE FILES: Download based on category
+        if (category === 'text' || category === 'markdown') {
+          // For text files, load as string
+          content = await invoke<string>('preview_remote_file', { path: filePath });
+        } else if (category === 'image') {
+          // For images, load as base64
           const base64 = await invoke<string>('ftp_read_file_base64', { path: filePath });
           blobUrl = `data:${mimeMap[ext] || 'image/png'};base64,${base64}`;
         }
@@ -994,6 +1004,7 @@ const App: React.FC = () => {
         path: filePath,
         size: file.size || 0,
         isRemote,
+        content,
         blobUrl,
         mimeType: mimeMap[ext],
         modified: file.modified || undefined,
