@@ -2,8 +2,9 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import { X, Settings, Server, Upload, Palette, Trash2, Edit, Plus, FolderOpen, Wifi, FileCheck } from 'lucide-react';
+import { X, Settings, Server, Upload, Palette, Trash2, Edit, Plus, FolderOpen, Wifi, FileCheck, Globe } from 'lucide-react';
 import { ServerProfile } from '../types';
+import { useI18n, Language, AVAILABLE_LANGUAGES } from '../i18n';
 
 interface SettingsPanelProps {
     isOpen: boolean;
@@ -65,6 +66,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
     const [servers, setServers] = useState<ServerProfile[]>([]);
     const [editingServer, setEditingServer] = useState<ServerProfile | null>(null);
     const [hasChanges, setHasChanges] = useState(false);
+
+    // i18n hook
+    const { language, setLanguage, t, availableLanguages } = useI18n();
 
     // Load settings on open
     useEffect(() => {
@@ -557,9 +561,42 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
 
                         {activeTab === 'ui' && (
                             <div className="space-y-6">
-                                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Interface Settings</h3>
+                                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('settings.appearance')}</h3>
 
                                 <div className="space-y-4">
+                                    {/* Language Selector */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+                                            <Globe size={16} className="text-blue-500" />
+                                            {t('settings.interfaceLanguage')}
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {availableLanguages.map(lang => (
+                                                <button
+                                                    key={lang.code}
+                                                    onClick={() => setLanguage(lang.code as Language)}
+                                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all ${language === lang.code
+                                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                                                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                                                        }`}
+                                                >
+                                                    <span className="text-2xl">{lang.flag}</span>
+                                                    <div className="text-left">
+                                                        <p className={`font-medium ${language === lang.code ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                                                            {lang.nativeName}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">{lang.name}</p>
+                                                    </div>
+                                                    {language === lang.code && (
+                                                        <span className="ml-auto text-blue-500">✓</span>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-xs text-gray-400 mt-2">{t('settings.restartRequired')}</p>
+                                    </div>
+
+                                    <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
 
                                     <label className="flex items-center gap-3 cursor-pointer">
                                         <input

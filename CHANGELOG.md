@@ -7,10 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.3] - 2026-01-05
 
+### Added
+- **Internationalization (i18n) System**: Complete multi-language support infrastructure
+  - Lightweight React Context-based system (zero external dependencies)
+  - Full TypeScript support with autocompletion
+  - English (base) and Italian translations included
+  - Browser language auto-detection with localStorage persistence
+  - Language selector in Settings → Appearance with flag icons
+  - Fallback to English for missing translations
+  - Parameter interpolation support (`{variable}` syntax)
+  - Documentation: `docs/TRANSLATIONS.md`
+
 ### Fixed
 - **AeroCloud Sync Interval Persistence Bug**: Added missing sync interval setting in CloudPanel Settings
   - Users can now modify the sync interval (1-60 minutes) after initial setup
   - Previously, the interval was only configurable during setup wizard
+
 
 ## [0.8.2] - 2025-12-25 🎄
 
