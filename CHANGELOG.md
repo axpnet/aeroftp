@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fallback to English for missing translations
   - Parameter interpolation support (`{variable}` syntax)
   - Documentation: `docs/TRANSLATIONS.md`
+  - Migrated components: StatusBar, ConnectionScreen, SavedServers, AboutDialog, Dialogs, SettingsPanel
 
 ### Fixed
 - **AeroCloud Sync Interval Persistence Bug**: Added missing sync interval setting in CloudPanel Settings

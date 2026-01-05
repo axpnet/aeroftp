@@ -12,6 +12,7 @@ import {
     Loader2, Zap, Shield, History, Radio
 } from 'lucide-react';
 import { useTraySync } from '../hooks/useTraySync';
+import { useTranslation } from '../i18n';
 import './CloudPanel.css';
 
 // TypeScript interfaces matching Rust structs
