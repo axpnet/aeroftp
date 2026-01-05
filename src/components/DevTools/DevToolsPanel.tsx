@@ -5,6 +5,7 @@ import { FilePreview } from './FilePreview';
 import { CodeEditor } from './CodeEditor';
 import { SSHTerminal } from './SSHTerminal';
 import { AIChat } from './AIChat';
+import { useTranslation } from '../../i18n';
 
 interface DevToolsPanelProps {
     isOpen: boolean;
@@ -31,6 +32,7 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
     onSaveFile,
     onClearPreview,
 }) => {
+    const t = useTranslation();
     const [activeTab, setActiveTab] = useState<DevToolsTab>('preview');
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
     const [isMaximized, setIsMaximized] = useState(false);
@@ -72,10 +74,10 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
     };
 
     const tabs: { id: DevToolsTab; label: string; icon: React.ReactNode; available: boolean }[] = [
-        { id: 'preview', label: 'Preview', icon: <Code size={14} />, available: true },
-        { id: 'editor', label: 'Editor', icon: <Edit3 size={14} />, available: true },
-        { id: 'terminal', label: 'Terminal', icon: <Terminal size={14} />, available: true },  // Phase 3 - Active!
-        { id: 'chat', label: 'AI Chat', icon: <MessageSquare size={14} />, available: true },  // Phase 4 - Preview
+        { id: 'preview', label: t('devtools.preview'), icon: <Code size={14} />, available: true },
+        { id: 'editor', label: t('devtools.editor'), icon: <Edit3 size={14} />, available: true },
+        { id: 'terminal', label: t('devtools.terminal'), icon: <Terminal size={14} />, available: true },
+        { id: 'chat', label: t('devtools.agent'), icon: <MessageSquare size={14} />, available: true },
     ];
 
     if (!isOpen) {
@@ -100,7 +102,7 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
                     <button
                         onClick={onToggle}
                         className="p-1 hover:bg-gray-700 rounded transition-colors"
-                        title={isOpen ? 'Collapse' : 'Expand'}
+                        title={isOpen ? t('common.close') : t('devtools.title')}
                     >
                         {isOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
                     </button>
@@ -134,7 +136,7 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
                         <button
                             onClick={onClearPreview}
                             className="p-1 hover:bg-gray-700 rounded transition-colors text-gray-400 hover:text-white"
-                            title="Clear current file"
+                            title={t('devtools.noFileSelected')}
                         >
                             <FileX size={14} />
                         </button>
@@ -149,7 +151,7 @@ export const DevToolsPanel: React.FC<DevToolsPanelProps> = ({
                     <button
                         onClick={onClose}
                         className="p-1 hover:bg-gray-700 rounded transition-colors"
-                        title="Close DevTools"
+                        title={t('common.close')}
                     >
                         <X size={14} />
                     </button>
