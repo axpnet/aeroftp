@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { X, Github, Heart, Cpu, Globe, Mail, Copy, Check, ChevronDown, ChevronUp, Wallet } from 'lucide-react';
 import { getVersion } from '@tauri-apps/api/app';
+import { useTranslation } from '../i18n';
 
 interface AboutDialogProps {
     isOpen: boolean;
@@ -46,6 +47,7 @@ const CRYPTO_ADDRESSES = {
 
 // Crypto Donate Panel Component
 const CryptoDonatePanel: React.FC<{ onClose?: () => void }> = () => {
+    const t = useTranslation();
     const [copiedChain, setCopiedChain] = useState<string | null>(null);
     const [expandedChain, setExpandedChain] = useState<string | null>(null);
 
@@ -93,14 +95,14 @@ const CryptoDonatePanel: React.FC<{ onClose?: () => void }> = () => {
                                         ? 'bg-green-500/20 text-green-400'
                                         : 'bg-gray-700 hover:bg-gray-600 text-gray-400'
                                         }`}
-                                    title="Copy address"
+                                    title={t('common.copy')}
                                 >
                                     {copiedChain === key ? <Check size={14} /> : <Copy size={14} />}
                                 </button>
                             </div>
                             {copiedChain === key && (
                                 <div className="text-xs text-green-400 text-center animate-pulse">
-                                    ✓ Address copied to clipboard
+                                    ✓ {t('toast.clipboardCopied')}
                                 </div>
                             )}
                         </div>
@@ -119,11 +121,12 @@ const CryptoDonatePanel: React.FC<{ onClose?: () => void }> = () => {
 };
 
 export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
+    const t = useTranslation();
     const [showDonatePanel, setShowDonatePanel] = useState(false);
     const [appVersion, setAppVersion] = useState('0.0.0');
 
     useEffect(() => {
-        getVersion().then(setAppVersion).catch(() => setAppVersion('0.5.7'));
+        getVersion().then(setAppVersion).catch(() => setAppVersion('0.8.3'));
     }, []);
 
     if (!isOpen) return null;
@@ -150,6 +153,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                     <button
                         onClick={onClose}
                         className="absolute top-3 right-3 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                        title={t('common.close')}
                     >
                         <X size={16} />
                     </button>
@@ -164,7 +168,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                     </div>
 
                     <h1 className="text-2xl font-bold font-mono">AeroFTP</h1>
-                    <p className="text-cyan-200 text-sm mt-1 font-mono">v{appVersion}</p>
+                    <p className="text-cyan-200 text-sm mt-1 font-mono">{t('common.version')} {appVersion}</p>
                 </div>
 
                 {/* Content */}
@@ -247,7 +251,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                             // AI: Claude Opus 4 • Gemini Pro
                         </p>
                         <p className="text-[10px] text-gray-700 mt-1 font-mono">
-                            © 2025 All rights reserved
+                            © 2025-2026 All rights reserved
                         </p>
                     </div>
                 </div>
@@ -267,4 +271,3 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
 };
 
 export default AboutDialog;
-

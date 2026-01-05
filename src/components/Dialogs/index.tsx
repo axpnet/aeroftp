@@ -1,8 +1,10 @@
 /**
  * Dialog components - Modal dialogs for confirmation, input, etc.
+ * i18n integrated
  */
 
 import React, { useState } from 'react';
+import { useTranslation } from '../../i18n';
 
 // ============ Confirm Dialog ============
 interface ConfirmDialogProps {
@@ -17,9 +19,10 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     message,
     onConfirm,
     onCancel,
-    confirmLabel = 'Delete',
+    confirmLabel,
     confirmColor = 'red'
 }) => {
+    const t = useTranslation();
     const colorMap = {
         red: 'bg-red-500 hover:bg-red-600',
         blue: 'bg-blue-500 hover:bg-blue-600',
@@ -35,13 +38,13 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                         onClick={onCancel}
                         className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </button>
                     <button
                         onClick={onConfirm}
                         className={`px-4 py-2 text-white rounded-lg ${colorMap[confirmColor]}`}
                     >
-                        {confirmLabel}
+                        {confirmLabel || t('common.delete')}
                     </button>
                 </div>
             </div>
@@ -65,6 +68,7 @@ export const InputDialog: React.FC<InputDialogProps> = ({
     onCancel,
     placeholder
 }) => {
+    const t = useTranslation();
     const [value, setValue] = useState(defaultValue);
 
     return (
@@ -85,13 +89,13 @@ export const InputDialog: React.FC<InputDialogProps> = ({
                         onClick={onCancel}
                         className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </button>
                     <button
                         onClick={() => onConfirm(value)}
                         className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                     >
-                        OK
+                        {t('common.ok')}
                     </button>
                 </div>
             </div>
@@ -114,38 +118,42 @@ export const SyncNavDialog: React.FC<SyncNavDialogProps> = ({
     onCreateFolder,
     onDisableSync,
     onCancel
-}) => (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-md">
-            <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">
-                📁 Folder Not Found
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-2 text-sm">
-                The {isRemote ? 'remote' : 'local'} folder does not exist:
-            </p>
-            <p className="text-blue-500 font-mono text-sm bg-gray-100 dark:bg-gray-700 p-2 rounded mb-4 break-all">
-                {missingPath}
-            </p>
-            <div className="flex flex-col gap-2">
-                <button
-                    onClick={onCreateFolder}
-                    className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-left flex items-center gap-2"
-                >
-                    <span>📂</span> Create folder and continue sync
-                </button>
-                <button
-                    onClick={onDisableSync}
-                    className="w-full px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-left flex items-center gap-2"
-                >
-                    <span>🔗</span> Disable navigation sync
-                </button>
-                <button
-                    onClick={onCancel}
-                    className="w-full px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-left"
-                >
-                    Cancel navigation
-                </button>
+}) => {
+    const t = useTranslation();
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-md">
+                <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">
+                    📁 {t('browser.newFolder')}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-2 text-sm">
+                    {isRemote ? t('browser.remote') : t('browser.local')} {t('browser.path')}:
+                </p>
+                <p className="text-blue-500 font-mono text-sm bg-gray-100 dark:bg-gray-700 p-2 rounded mb-4 break-all">
+                    {missingPath}
+                </p>
+                <div className="flex flex-col gap-2">
+                    <button
+                        onClick={onCreateFolder}
+                        className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-left flex items-center gap-2"
+                    >
+                        <span>📂</span> {t('common.create')} {t('browser.newFolder')}
+                    </button>
+                    <button
+                        onClick={onDisableSync}
+                        className="w-full px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-left flex items-center gap-2"
+                    >
+                        <span>🔗</span> {t('cloud.disable')}
+                    </button>
+                    <button
+                        onClick={onCancel}
+                        className="w-full px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-left"
+                    >
+                        {t('common.cancel')}
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};

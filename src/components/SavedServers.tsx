@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { Server, Plus, Trash2, Star, Edit2, X, Check, FolderOpen } from 'lucide-react';
+import { Server, Plus, Trash2, Edit2, X, Check, FolderOpen } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { ServerProfile, ConnectionParams } from '../types';
+import { useTranslation } from '../i18n';
 
 interface SavedServersProps {
     onConnect: (params: ConnectionParams, initialPath?: string, localInitialPath?: string) => void;
@@ -30,6 +31,7 @@ const saveServers = (servers: ServerProfile[]) => {
 };
 
 export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className = '' }) => {
+    const t = useTranslation();
     const [servers, setServers] = useState<ServerProfile[]>([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -114,12 +116,12 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Server size={20} />
-                    Saved Servers
+                    {t('connection.savedServers')}
                 </h3>
                 <button
                     onClick={() => setShowAddForm(true)}
                     className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors"
-                    title="Add server"
+                    title={t('connection.saveServer')}
                 >
                     <Plus size={16} />
                 </button>
@@ -128,7 +130,7 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
             {/* Server list */}
             {servers.length === 0 && !showAddForm && (
                 <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-4">
-                    No saved servers. Click + to add one.
+                    {t('connection.noSavedServers')}
                 </p>
             )}
 
@@ -156,12 +158,14 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
                             <button
                                 onClick={() => handleEdit(server)}
                                 className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                title={t('connection.editServer')}
                             >
                                 <Edit2 size={14} />
                             </button>
                             <button
                                 onClick={() => handleDelete(server.id)}
                                 className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                title={t('connection.deleteServer')}
                             >
                                 <Trash2 size={14} />
                             </button>
@@ -174,14 +178,14 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
             {showAddForm && (
                 <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-xl space-y-3">
                     <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">{editingId ? 'Edit Server' : 'Add Server'}</h4>
+                        <h4 className="font-medium">{editingId ? t('connection.editServer') : t('connection.saveServer')}</h4>
                         <button onClick={resetForm} className="p-1 text-gray-500 hover:text-gray-700">
                             <X size={16} />
                         </button>
                     </div>
                     <input
                         type="text"
-                        placeholder="Name (optional)"
+                        placeholder={t('connection.serverName')}
                         value={formData.name || ''}
                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                         className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
@@ -189,14 +193,14 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            placeholder="Host *"
+                            placeholder={t('connection.server') + ' *'}
                             value={formData.host || ''}
                             onChange={e => setFormData({ ...formData, host: e.target.value })}
                             className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
                         />
                         <input
                             type="number"
-                            placeholder="Port"
+                            placeholder={t('connection.port')}
                             value={formData.port || 21}
                             onChange={e => setFormData({ ...formData, port: parseInt(e.target.value) || 21 })}
                             className="w-20 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
@@ -204,21 +208,21 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
                     </div>
                     <input
                         type="text"
-                        placeholder="Username *"
+                        placeholder={t('connection.username') + ' *'}
                         value={formData.username || ''}
                         onChange={e => setFormData({ ...formData, username: e.target.value })}
                         className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
                     />
                     <input
                         type="password"
-                        placeholder="Password"
+                        placeholder={t('connection.password')}
                         value={formData.password || ''}
                         onChange={e => setFormData({ ...formData, password: e.target.value })}
                         className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
                     />
                     <input
                         type="text"
-                        placeholder="Remote Path (e.g. /www.axpdev.it)"
+                        placeholder={t('browser.remote') + ' ' + t('browser.path')}
                         value={formData.initialPath || ''}
                         onChange={e => setFormData({ ...formData, initialPath: e.target.value })}
                         className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
@@ -226,7 +230,7 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
                     <div className="flex items-center gap-2">
                         <input
                             type="text"
-                            placeholder="Local Path (e.g. /home/user/projects/mysite)"
+                            placeholder={t('browser.local') + ' ' + t('browser.path')}
                             value={formData.localInitialPath || ''}
                             onChange={e => setFormData({ ...formData, localInitialPath: e.target.value })}
                             className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
@@ -238,7 +242,7 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
                                     const selected = await open({
                                         directory: true,
                                         multiple: false,
-                                        title: 'Select Local Project Folder'
+                                        title: t('browser.local')
                                     });
                                     if (selected && typeof selected === 'string') {
                                         setFormData({ ...formData, localInitialPath: selected });
@@ -248,7 +252,7 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
                                 }
                             }}
                             className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                            title="Browse for folder"
+                            title={t('common.browse')}
                         >
                             <FolderOpen size={16} />
                         </button>
@@ -259,7 +263,7 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
                         className="w-full py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-2 transition-colors"
                     >
                         <Check size={16} />
-                        {editingId ? 'Update' : 'Save'}
+                        {t('common.save')}
                     </button>
                 </div>
             )}
