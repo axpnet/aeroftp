@@ -1,7 +1,8 @@
 # AeroCloud UX Enhancements - Phase 2
 
-## ✅ Completato (v0.7.x)
+## ✅ Completato (v0.8.x)
 
+### Core Features (v0.7.x)
 - [x] Background sync con tokio (connessione FTP dedicata)
 - [x] Tray icon con menu funzionante
 - [x] Hide to tray quando sync attivo
@@ -9,43 +10,39 @@
 - [x] Cartelle vuote sincronizzate (upload + download)
 - [x] Cloud tab nella barra sessioni
 
----
-
-## 🎨 UX Enhancements (Prossima Release)
-
-### 1. Sync Animation - Solo durante trasferimento
-**Problema:** L'animazione "Syncing" è attiva continuamente
-**Soluzione:** 
-- Status `active` (tra un sync e l'altro) → icona statica cyan
-- Status `syncing` (durante trasferimento) → animazione bounce
-
-### 2. Countdown Timer in Status Bar
-**Feature:** Mostrare tempo rimanente al prossimo sync
-- Timer visibile: "Next sync: 2:45"
-- Si resetta dopo ogni sync completato
-- Usa evento backend per countdown
-
-### 3. Sync Interval Persistence Bug
-**Bug:** Intervallo impostato (1 min) torna a 5 min default
-**Fix:** Verificare salvataggio `sync_interval_secs` in cloud_config.json
-
-### 4. Cloud Tab → FTP Browser
-**Feature:** Click su Cloud Tab apre dual-panel con:
-- Sinistra: Cartella cloud locale
-- Destra: Cartella cloud remota (auto-connect)
-
-### 5. Sync Badges (Dropbox-style)
-**Feature:** Badge sui file per mostrare stato sync
-- ✓ Verde: sincronizzato
-- ↻ Giallo: in attesa/pending
-- ↑↓ Blu: in trasferimento
+### UX Enhancements (v0.8.x) - All Fixed ✅
+- [x] **Sync Animation** - Solo durante trasferimento attivo
+  - Fix: CloudPanel.tsx → icona spin solo quando `status.type === 'syncing'`
+- [x] **Countdown Timer** - Mostra tempo al prossimo sync
+  - Implementato in CloudDashboard con formato `mm:ss`
+- [x] **Sync Interval Persistence Bug** - FIXED 2026-01-05
+  - Root cause: Settings panel mancava campo per modificare interval
+  - Fix: Aggiunto input "Sync Interval" nel pannello Settings
+- [x] **Cloud Tab → FTP Browser** - Auto-connect al server cloud
+  - Implementato in App.tsx `handleCloudTabClick()`
+- [x] **Sync Badges** (Dropbox-style) - Badge sui file
+  - ✓ Verde: sincronizzato
+  - ↻ Giallo: in attesa/pending
+  - 🔄 Cyan: in trasferimento (animato)
 
 ---
 
-## Priorità Suggerita
+## 🎯 Prossime Feature (Backlog)
 
-1. **Fix Animation** (facile, UX immediata)
-2. **Fix Interval Bug** (importante per usabilità)
-3. **Countdown Timer** (nice-to-have)
-4. **Cloud Tab Browser** (media complessità)
-5. **Sync Badges** (alta complessità, richiede file tracking)
+### Performance
+- [ ] Folder Size Calculation: Pre-calcolare dimensione totale per progress %
+- [ ] Parallel Transfers: Multi-threaded per cartelle grandi
+
+### UX
+- [ ] Cancel Support: Cancellazione operazioni ricorsive
+- [ ] Partial Retry: Riprendi da ultimo file completato
+- [ ] Folder Compression: Opzione compressione prima del trasferimento
+
+### Architecture
+- [ ] Sync Queue: Coda per gestire conflitti batch
+- [ ] File Watcher: Sync on change con fsnotify
+
+---
+
+**Last Updated**: 2026-01-05
+**Status**: All v0.8.x enhancements complete ✅

@@ -708,6 +708,25 @@ export const CloudPanel: React.FC<CloudPanelProps> = ({ isOpen, onClose }) => {
                             />
                         </div>
 
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Sync Interval</label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="60"
+                                    value={config ? Math.round(config.sync_interval_secs / 60) : 5}
+                                    onChange={e => setConfig(prev => prev ? {
+                                        ...prev,
+                                        sync_interval_secs: Math.max(1, parseInt(e.target.value) || 5) * 60
+                                    } : null)}
+                                    className="w-20 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-center"
+                                />
+                                <span className="text-sm text-gray-500 dark:text-gray-400">minutes</span>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1">How often to sync files in the background</p>
+                        </div>
+
                         <div className="flex gap-3 pt-4">
                             <button
                                 onClick={async () => {
