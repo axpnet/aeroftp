@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-01-06
+
+### Changed
+- **Pre-release for v1.0.0**: Stabilization and final polish
+- Restructured GitHub Actions workflow for direct release upload
+- Eliminated artifact storage quota issues
+
+### Added
+- Full macOS support in CI/CD pipeline (.dmg builds)
+
+---
+
 ## [0.8.3] - 2026-01-05
 
 ### Added
