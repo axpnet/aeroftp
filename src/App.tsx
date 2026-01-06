@@ -976,9 +976,19 @@ const App: React.FC = () => {
           // For text files, load as string
           content = await invoke<string>('read_local_file', { path: filePath });
         } else {
-          // For binary files (images, etc.), load as base64
+          // For binary files (images, audio, video), load as base64 and convert to Blob URL
           const base64 = await invoke<string>('read_local_file_base64', { path: filePath });
-          blobUrl = `data:${mimeMap[ext] || 'application/octet-stream'};base64,${base64}`;
+
+          // Convert base64 to Blob for better streaming performance
+          const mimeType = mimeMap[ext] || 'application/octet-stream';
+          const byteCharacters = atob(base64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: mimeType });
+          blobUrl = URL.createObjectURL(blob);
         }
       } else {
         // REMOTE FILES: Download based on category
@@ -1017,6 +1027,10 @@ const App: React.FC = () => {
 
   // Close Universal Preview
   const closeUniversalPreview = () => {
+    // Cleanup blob URL if it exists to prevent memory leaks
+    if (universalPreviewFile?.blobUrl && universalPreviewFile.blobUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(universalPreviewFile.blobUrl);
+    }
     setUniversalPreviewOpen(false);
     setUniversalPreviewFile(null);
   };

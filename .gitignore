@@ -44,3 +44,9 @@ src-tauri/gen/
 # Local development files
 *.local
 .tauri/
+
+# Snapcraft
+*.snap
+parts/
+stage/
+prime/

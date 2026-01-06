@@ -1,5 +1,5 @@
 name: aeroftp
-version: '0.9.0'
+version: '0.9.1'
 summary: Fast, Beautiful, Reliable FTP Client built with Tauri
 description: |
   AeroFTP is a modern, open-source FTP client that combines beauty and functionality.
@@ -23,6 +23,12 @@ base: core22
 grade: stable
 confinement: strict
 compression: lzo
+
+contact: https://github.com/axpnet/aeroftp/discussions
+issues: https://github.com/axpnet/aeroftp/issues
+source-code: https://github.com/axpnet/aeroftp
+website: https://github.com/axpnet/aeroftp
+license: GPL-3.0
 
 architectures:
   - build-on: amd64
