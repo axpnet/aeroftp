@@ -1,6 +1,6 @@
 app-id: com.aeroftp.app
 runtime: org.gnome.Platform
-runtime-version: '46'
+runtime-version: '48'
 sdk: org.gnome.Sdk
 command: aeroftp
 
@@ -20,17 +20,23 @@ finish-args:
   - --device=dri
   # Audio (for media player)
   - --socket=pulseaudio
-  # D-Bus access for secrets
+  # D-Bus access for secrets and app indicators
   - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=com.canonical.indicator.application
+  - --talk-name=org.ayatana.indicator.application
 
 modules:
+  # Shared module for libappindicator
+  - shared-modules/libappindicator/libappindicator-gtk3-12.10.json
+
   # AeroFTP application - extract from .deb package
   - name: aeroftp
     buildsystem: simple
     build-commands:
       # Extract deb package
       - ar x aeroftp.deb
-      - tar xf data.tar.xz
+      - tar xf data.tar.gz
       
       # Install binary
       - install -Dm755 usr/bin/aeroftp /app/bin/aeroftp
