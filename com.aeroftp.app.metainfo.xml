@@ -6,7 +6,7 @@
   <summary>Fast, Beautiful, Reliable FTP Client</summary>
   
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>MIT</project_license>
+  <project_license>GPL-3.0-or-later</project_license>
   
   <description>
     <p>
@@ -15,17 +15,20 @@
     </p>
     <p>Features:</p>
     <ul>
+      <li>🌍 Multi-language support (i18n) - English, Italian</li>
       <li>🚀 Fast transfers with real-time progress monitoring</li>
+      <li>☁️ AeroCloud file synchronization</li>
       <li>🎨 Beautiful, modern dark/light themes</li>
       <li>📁 Dual-pane file browser for local and remote files</li>
       <li>🔄 File synchronization with conflict detection</li>
       <li>💻 Integrated DevTools with code editor, terminal, and AI chat</li>
       <li>📜 Multi-session tabs with connection caching</li>
-      <li>🔐 Secure connection profiles management</li>
+      <li>🔐 Secure FTPS connection profiles</li>
       <li>⌨️ Keyboard shortcuts for power users</li>
     </ul>
     <p>
       Built with Rust (Tauri) and React/TypeScript for maximum performance and reliability.
+      Open source under GPL-3.0 license.
     </p>
   </description>
   
@@ -41,29 +44,39 @@
   <url type="homepage">https://github.com/axpnet/aeroftp</url>
   <url type="bugtracker">https://github.com/axpnet/aeroftp/issues</url>
   
-  <developer_name>axpdev</developer_name>
+  <developer_name>Ale (axpdev)</developer_name>
   
   <provides>
     <binary>aeroftp</binary>
   </provides>
   
   <releases>
-    <release version="0.5.6" date="2025-12-22">
+    <release version="0.9.1" date="2026-01-06">
       <description>
-        <p>Bug fixes and improvements:</p>
+        <p>Hotfix release with media player improvements:</p>
         <ul>
-          <li>Fixed TypeScript build errors in ToolApproval component</li>
-          <li>Improved cross-platform compatibility with PTY module on Windows</li>
-          <li>Added Snap package support for Ubuntu</li>
-          <li>Better Linux desktop integration</li>
+          <li>Fixed audio/video playback using efficient Blob URLs</li>
+          <li>Fixed memory leaks in media preview</li>
+          <li>Snap package with classic confinement for full compatibility</li>
         </ul>
       </description>
     </release>
-    <release version="0.3.2" date="2025-12-21">
+    <release version="0.9.0" date="2026-01-05">
       <description>
-        <p>Initial stable release with GitHub Actions workflow fixes</p>
+        <p>Major release - Open Source Edition:</p>
+        <ul>
+          <li>Open sourced under GPL-3.0 license</li>
+          <li>Multi-language support (English, Italian)</li>
+          <li>AeroCloud file synchronization</li>
+          <li>Snap Store publication</li>
+        </ul>
       </description>
     </release>
+    <release version="0.5.6" date="2025-12-22">
+      <description>
+        <p>Bug fixes and improvements</p>
+      </description>
+    </release>>
   </releases>
   
   <content_rating type="oars-1.1">
