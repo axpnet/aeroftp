@@ -21,7 +21,7 @@ description: |
 
 base: core24
 grade: stable
-confinement: strict
+confinement: classic
 compression: lzo
 
 contact: https://github.com/axpnet/aeroftp/discussions
@@ -39,35 +39,12 @@ apps:
   aeroftp:
     command: usr/bin/aeroftp
 
-    plugs:
-      - home
-      - network
-      - network-bind
-      - removable-media
-      - desktop
-      - desktop-legacy
-      - wayland
-      - x11
-      - unity7
-      - gsettings
-    environment:
-      LD_LIBRARY_PATH: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/webkit2gtk-4.1:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET
-
 parts:
   aeroftp:
     plugin: nil
     source: .
-    stage-packages:
-      - libwebkit2gtk-4.1-0
-      - libappindicator3-1
-      - librsvg2-2
-      - libayatana-appindicator3-1
-      - libgtk-3-0
-      - libgdk-pixbuf-2.0-0
-      - libpango-1.0-0
-      - libcairo2
     override-build: |
-      # Copy pre-built binary and resources
+      # Copy pre-built binary only - use system libraries in classic mode
       mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
       mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps
       
