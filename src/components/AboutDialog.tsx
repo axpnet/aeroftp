@@ -174,17 +174,20 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                 {/* Content */}
                 <div className="p-5 space-y-4">
                     <p className="text-center text-gray-400 text-sm">
-                        {'>'} More than FTP. A complete developer toolkit.
+                        {'>'} {t('about.tagline')}
                     </p>
 
-                    {/* Features Grid */}
-                    <div className="grid grid-cols-2 gap-1.5 text-xs text-gray-500 py-2">
-                        <div className="flex items-center gap-1.5 font-mono">⚡ Rust Engine</div>
-                        <div className="flex items-center gap-1.5 font-mono">📝 Monaco Editor</div>
-                        <div className="flex items-center gap-1.5 font-mono">🖥️ PTY Terminal</div>
-                        <div className="flex items-center gap-1.5 font-mono">🤖 AI Agent</div>
-                        <div className="flex items-center gap-1.5 font-mono">🔒 FTPS Secure</div>
-                        <div className="flex items-center gap-1.5 font-mono">🔄 File Sync</div>
+                    {/* Features Grid - 3 columns with all 9 features */}
+                    <div className="grid grid-cols-3 gap-1.5 text-xs text-gray-500 py-2">
+                        <div className="flex items-center gap-1.5 font-mono">⚡ {t('about.features.rustEngine')}</div>
+                        <div className="flex items-center gap-1.5 font-mono">📝 {t('about.features.monacoEditor')}</div>
+                        <div className="flex items-center gap-1.5 font-mono">🖥️ {t('about.features.ptyTerminal')}</div>
+                        <div className="flex items-center gap-1.5 font-mono">🤖 {t('about.features.aiAgent')}</div>
+                        <div className="flex items-center gap-1.5 font-mono">🔒 {t('about.features.ftpsSecure')}</div>
+                        <div className="flex items-center gap-1.5 font-mono">🔄 {t('about.features.fileSync')}</div>
+                        <div className="flex items-center gap-1.5 font-mono">☁️ {t('about.features.aeroCloud')}</div>
+                        <div className="flex items-center gap-1.5 font-mono">🎵 {t('about.features.mediaPlayer')}</div>
+                        <div className="flex items-center gap-1.5 font-mono">🖼️ {t('about.features.imagePreview')}</div>
                     </div>
 
                     {/* Tech Stack */}
@@ -230,7 +233,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                         >
                             <Wallet size={18} />
                             <span className="font-mono text-sm">
-                                {showDonatePanel ? '// Donate with Crypto' : '💰 Support Development'}
+                                {showDonatePanel ? `// ${t('about.donateWith')}` : `💰 ${t('about.supportDev')}`}
                             </span>
                             {showDonatePanel ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </button>
@@ -245,13 +248,13 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => 
                     {/* Credits */}
                     <div className="text-center pt-3 border-t border-gray-800">
                         <p className="text-xs text-gray-500 flex items-center justify-center gap-1 font-mono">
-                            {'>'} Made with <Heart size={12} className="text-red-500" /> by AxpDev
+                            {'>'} {t('about.madeWith')} <Heart size={12} className="text-red-500" /> by AxpDev
                         </p>
                         <p className="text-[10px] text-gray-600 mt-1 font-mono">
-                            // AI: Claude Opus 4 • Gemini Pro
+                            // {t('about.aiCredits')}
                         </p>
                         <p className="text-[10px] text-gray-700 mt-1 font-mono">
-                            © 2025-2026 All rights reserved
+                            {t('about.copyright')}
                         </p>
                     </div>
                 </div>

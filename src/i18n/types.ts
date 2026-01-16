@@ -4,7 +4,7 @@
 /**
  * Supported language codes (ISO 639-1)
  */
-export type Language = 'en' | 'it';
+export type Language = 'en' | 'it' | 'es' | 'fr' | 'zh';
 
 /**
  * Translation namespace structure
@@ -275,6 +275,27 @@ export interface TranslationKeys {
         syncComplete: string;
         syncFailed: string;
     };
+
+    // About dialog
+    about: {
+        tagline: string;
+        features: {
+            rustEngine: string;
+            monacoEditor: string;
+            ptyTerminal: string;
+            aiAgent: string;
+            ftpsSecure: string;
+            fileSync: string;
+            aeroCloud: string;
+            mediaPlayer: string;
+            imagePreview: string;
+        };
+        madeWith: string;
+        aiCredits: string;
+        copyright: string;
+        supportDev: string;
+        donateWith: string;
+    };
 }
 
 /**
@@ -325,6 +346,9 @@ export type TranslationFunction = (
 export const AVAILABLE_LANGUAGES: LanguageInfo[] = [
     { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
     { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
+    { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+    { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
+    { code: 'zh', name: 'Chinese', nativeName: '简体中文', flag: '🇨🇳' },
 ];
 
 /**

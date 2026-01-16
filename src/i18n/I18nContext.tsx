@@ -16,11 +16,17 @@ import {
 // Using static imports ensures tree-shaking and type safety
 import enTranslations from './locales/en.json';
 import itTranslations from './locales/it.json';
+import esTranslations from './locales/es.json';
+import frTranslations from './locales/fr.json';
+import zhTranslations from './locales/zh.json';
 
 // Translation map for O(1) lookup
 const TRANSLATIONS: Record<Language, { translations: TranslationKeys }> = {
     en: enTranslations as { translations: TranslationKeys },
     it: itTranslations as { translations: TranslationKeys },
+    es: esTranslations as { translations: TranslationKeys },
+    fr: frTranslations as { translations: TranslationKeys },
+    zh: zhTranslations as { translations: TranslationKeys },
 };
 
 // Create context with undefined default (will throw if used outside provider)
@@ -58,26 +64,12 @@ function interpolate(template: string, params?: Record<string, string | number>)
 }
 
 /**
- * Detect browser language preference
- * Returns the best matching supported language or default
+ * Detect browser language preference (DISABLED for developer-first approach)
+ * Now returns default language - users must explicitly choose their language
+ * This ensures consistent English default across all systems
  */
 function detectBrowserLanguage(): Language {
-    if (typeof navigator === 'undefined') return DEFAULT_LANGUAGE;
-
-    // Check navigator.language first (primary preference)
-    const primaryLang = navigator.language?.split('-')[0]?.toLowerCase();
-    if (primaryLang && AVAILABLE_LANGUAGES.some(l => l.code === primaryLang)) {
-        return primaryLang as Language;
-    }
-
-    // Check navigator.languages array (all preferences)
-    for (const lang of navigator.languages || []) {
-        const code = lang.split('-')[0].toLowerCase();
-        if (AVAILABLE_LANGUAGES.some(l => l.code === code)) {
-            return code as Language;
-        }
-    }
-
+    // Developer-first app: default to English, let users choose their preferred language
     return DEFAULT_LANGUAGE;
 }
 

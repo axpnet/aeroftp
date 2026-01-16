@@ -41,7 +41,7 @@ interface AppSettings {
 
 const defaultSettings: AppSettings = {
     defaultLocalPath: '',
-    showHiddenFiles: false,
+    showHiddenFiles: true,  // Developer-first: show all files by default
     confirmBeforeDelete: true,
     timeoutSeconds: 30,
     tlsVersion: 'auto',
@@ -576,8 +576,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
                                                     key={lang.code}
                                                     onClick={() => setLanguage(lang.code as Language)}
                                                     className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all ${language === lang.code
-                                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                                                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                                                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                                                         }`}
                                                 >
                                                     <span className="text-2xl">{lang.flag}</span>

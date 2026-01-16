@@ -767,8 +767,9 @@ async fn cancel_transfer(state: State<'_, AppState>) -> Result<(), String> {
 // ============ Local File System Commands ============
 
 #[tauri::command]
-async fn get_local_files(path: String) -> Result<Vec<LocalFileInfo>, String> {
+async fn get_local_files(path: String, show_hidden: Option<bool>) -> Result<Vec<LocalFileInfo>, String> {
     let path = PathBuf::from(&path);
+    let show_hidden = show_hidden.unwrap_or(true);  // Developer-first: show all files by default
     
     if !path.exists() {
         return Err(format!("Path does not exist: {}", path.display()));
@@ -786,8 +787,8 @@ async fn get_local_files(path: String) -> Result<Vec<LocalFileInfo>, String> {
         let metadata = entry.metadata().await.ok();
         let file_name = entry.file_name().to_string_lossy().to_string();
         
-        // Skip hidden files
-        if file_name.starts_with('.') {
+        // Skip hidden files unless show_hidden is enabled
+        if !show_hidden && file_name.starts_with('.') {
             continue;
         }
 
@@ -1336,7 +1337,7 @@ async fn ai_execute_tool(
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("/");
             
             if location == "local" {
-                let files = get_local_files(path.to_string())
+                let files = get_local_files(path.to_string(), Some(true))
                     .await
                     .map_err(|e| e.to_string())?;
                 Ok(serde_json::json!({

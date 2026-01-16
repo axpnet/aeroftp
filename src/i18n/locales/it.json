@@ -252,6 +252,25 @@
             "syncStarted": "Sincronizzazione avviata",
             "syncComplete": "Sincronizzazione completata: ↑{uploaded} ↓{downloaded}",
             "syncFailed": "Sincronizzazione fallita: {error}"
+        },
+        "about": {
+            "tagline": "Più che FTP. Un toolkit completo per sviluppatori.",
+            "features": {
+                "rustEngine": "Motore Rust",
+                "monacoEditor": "Editor Monaco",
+                "ptyTerminal": "Terminale PTY",
+                "aiAgent": "Agente AI",
+                "ftpsSecure": "FTPS Sicuro",
+                "fileSync": "Sincronizzazione File",
+                "aeroCloud": "AeroCloud",
+                "mediaPlayer": "Player Multimediale",
+                "imagePreview": "Anteprima Immagini"
+            },
+            "madeWith": "Fatto con",
+            "aiCredits": "AI: Claude Opus 4.5 + modelli di supporto",
+            "copyright": "© 2025-2026 Tutti i diritti riservati",
+            "supportDev": "Supporta lo Sviluppo",
+            "donateWith": "Dona con Crypto"
         }
     }
 }

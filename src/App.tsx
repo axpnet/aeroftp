@@ -104,6 +104,7 @@ const App: React.FC = () => {
   const [showMenuBar, setShowMenuBar] = useState(true);  // Internal header visibility
   const [systemMenuVisible, setSystemMenuVisible] = useState(true);  // Native system menu bar
   const [compactMode, setCompactMode] = useState(false);  // Compact UI mode
+  const [showHiddenFiles, setShowHiddenFiles] = useState(true);  // Developer-first: show all files by default
   const [isSyncNavigation, setIsSyncNavigation] = useState(false); // Navigation Sync feature
   const [syncBasePaths, setSyncBasePaths] = useState<{ remote: string; local: string } | null>(null);
   const [syncNavDialog, setSyncNavDialog] = useState<{ missingPath: string; isRemote: boolean; targetPath: string } | null>(null);
@@ -306,11 +307,14 @@ const App: React.FC = () => {
       }
       invoke('toggle_menu_bar', { visible: showMenu });
 
-      // Load compact mode setting
+      // Load compact mode setting and show hidden files setting
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
         if (typeof parsed.compactMode === 'boolean') {
           setCompactMode(parsed.compactMode);
+        }
+        if (typeof parsed.showHiddenFiles === 'boolean') {
+          setShowHiddenFiles(parsed.showHiddenFiles);
         }
       }
     } catch (e) {
@@ -325,6 +329,9 @@ const App: React.FC = () => {
           const parsed = JSON.parse(savedSettings);
           if (typeof parsed.compactMode === 'boolean') {
             setCompactMode(parsed.compactMode);
+          }
+          if (typeof parsed.showHiddenFiles === 'boolean') {
+            setShowHiddenFiles(parsed.showHiddenFiles);
           }
         }
       } catch (e) { }
@@ -433,13 +440,13 @@ const App: React.FC = () => {
   // File loading
   const loadLocalFiles = useCallback(async (path: string) => {
     try {
-      const files: LocalFile[] = await invoke('get_local_files', { path });
+      const files: LocalFile[] = await invoke('get_local_files', { path, showHidden: showHiddenFiles });
       setLocalFiles(files);
       setCurrentLocalPath(path);
     } catch (error) {
       toast.error('Error', `Failed to list local files: ${error}`);
     }
-  }, []);
+  }, [showHiddenFiles]);
 
   const loadRemoteFiles = async () => {
     try {
@@ -457,6 +464,19 @@ const App: React.FC = () => {
       catch { try { await loadLocalFiles(await downloadDir()); } catch { } }
     })();
   }, [loadLocalFiles]);
+
+  // Reload local files when showHiddenFiles setting changes
+  const isFirstRender = React.useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    // Reload current local directory with new hidden files setting
+    if (currentLocalPath) {
+      loadLocalFiles(currentLocalPath);
+    }
+  }, [showHiddenFiles]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check AeroCloud state on mount and listen for status changes
   useEffect(() => {
@@ -737,7 +757,7 @@ const App: React.FC = () => {
           setRemoteFiles(remoteResponse.files);
           setCurrentRemotePath(remoteResponse.current_path);
 
-          const localFilesData: LocalFile[] = await invoke('get_local_files', { path: cloudConfig.local_folder });
+          const localFilesData: LocalFile[] = await invoke('get_local_files', { path: cloudConfig.local_folder, showHidden: showHiddenFiles });
           setLocalFiles(localFilesData);
           setCurrentLocalPath(cloudConfig.local_folder);
 
@@ -800,7 +820,7 @@ const App: React.FC = () => {
       setCurrentRemotePath(remoteResponse.current_path);
 
       // Local: navigate to cloud local folder
-      const cloudLocalFilesData: LocalFile[] = await invoke('get_local_files', { path: cloudConfig.local_folder });
+      const cloudLocalFilesData: LocalFile[] = await invoke('get_local_files', { path: cloudConfig.local_folder, showHidden: showHiddenFiles });
       setLocalFiles(cloudLocalFilesData);
       setCurrentLocalPath(cloudConfig.local_folder);
 
@@ -836,7 +856,7 @@ const App: React.FC = () => {
         const newLocalPath = syncBasePaths.local + relativePath;
         // Check if local path exists
         try {
-          const files: LocalFile[] = await invoke('get_local_files', { path: newLocalPath });
+          const files: LocalFile[] = await invoke('get_local_files', { path: newLocalPath, showHidden: showHiddenFiles });
           setLocalFiles(files);
           setCurrentLocalPath(newLocalPath);
         } catch {

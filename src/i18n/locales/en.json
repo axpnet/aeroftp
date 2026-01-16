@@ -252,6 +252,25 @@
             "syncStarted": "Sync started",
             "syncComplete": "Sync complete: ↑{uploaded} ↓{downloaded}",
             "syncFailed": "Sync failed: {error}"
+        },
+        "about": {
+            "tagline": "More than FTP. A complete developer toolkit.",
+            "features": {
+                "rustEngine": "Rust Engine",
+                "monacoEditor": "Monaco Editor",
+                "ptyTerminal": "PTY Terminal",
+                "aiAgent": "AI Agent",
+                "ftpsSecure": "FTPS Secure",
+                "fileSync": "File Sync",
+                "aeroCloud": "AeroCloud",
+                "mediaPlayer": "Media Player",
+                "imagePreview": "Image Preview"
+            },
+            "madeWith": "Made with",
+            "aiCredits": "AI: Claude Opus 4.5 + support models",
+            "copyright": "© 2025-2026 All rights reserved",
+            "supportDev": "Support Development",
+            "donateWith": "Donate with Crypto"
         }
     }
 }
