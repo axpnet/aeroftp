@@ -1,27 +1,42 @@
 name: aeroftp
-version: '0.9.5'
-summary: Fast, Beautiful, Reliable FTP Client built with Tauri
+version: '0.9.6'
+summary: Modern FTP Client built with Tauri (Strict Snap - Limited Access)
 description: |
   AeroFTP is a modern, open-source FTP client that combines beauty and functionality.
   
+  ⚠️  **SNAP VERSION LIMITATIONS** ⚠️
+  This Snap uses strict confinement which limits filesystem access.
+  You can ONLY access files in:
+  - ~/snap/aeroftp/common/
+  - ~/snap/aeroftp/current/
+  - Mounted removable media (if you connect the removable-media plug)
+  
+  💡 **FOR FULL FILESYSTEM ACCESS, USE:**
+  - .deb package (Debian/Ubuntu) - RECOMMENDED
+  - .AppImage (Universal Linux) - RECOMMENDED
+  - .dmg (macOS)
+  - .msi/.exe (Windows)
+  
+  Download full versions: https://github.com/axpnet/aeroftp/releases
+  
   **Features:**
-  - 🌍 Multi-language support (i18n) - English, Italian
+  - 🌍 Multi-language (EN, IT, ES, FR, ZH)
   - 🚀 Fast transfers with real-time progress
   - ☁️ AeroCloud file synchronization
-  - 🎨 Beautiful, modern dark/light themes
-  - 📁 Dual-pane file browser (local & remote)
-  - 🔄 File synchronization with conflict detection
-  - 💻 Integrated DevTools (Code Editor, Terminal, AI Chat)
-  - 📜 Multi-session tabs with connection caching
-  - 🔐 Secure FTPS connection profiles
-  - ⌨️ Keyboard shortcuts for power users
+  - 🎨 Beautiful dark/light themes
+  - 📁 Dual-pane file browser
+  - 🔄 File sync with conflict detection
+  - 💻 DevTools (Editor, Terminal, AI Chat)
+  - 📜 Multi-session tabs
+  - 🔐 Secure FTPS connections
+  - 🎵 Media player & image preview
   
-  Built with Rust (Tauri) and React/TypeScript for maximum performance.
+  Built with Rust (Tauri) + React/TypeScript.
   Open source under GPL-3.0 license.
 
-base: core24
+base: core22
 grade: stable
-confinement: classic
+confinement: strict
 compression: lzo
 
 contact: https://github.com/axpnet/aeroftp/discussions
@@ -30,23 +45,75 @@ source-code: https://github.com/axpnet/aeroftp
 website: https://github.com/axpnet/aeroftp
 license: GPL-3.0
 
-platforms:
-  amd64:
+architectures:
+  - build-on: amd64
+    build-for: amd64
 
 icon: icons/AeroFTP_simbol_color_512x512.png
 
 apps:
   aeroftp:
     command: usr/bin/aeroftp
+    desktop: usr/share/applications/aeroftp.desktop
+    environment:
+      # WebKitGTK environment
+      GDK_BACKEND: x11
+      GTK_USE_PORTAL: 1
+    plugs:
+      - home
+      - removable-media
+      - network
+      - network-bind
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+      - audio-playback
+      - unity7
+      - gsettings
+
+plugs:
+  gtk-3-themes:
+    interface: content
+    target: $SNAP/data-dir/themes
+    default-provider: gtk-common-themes
+  icon-themes:
+    interface: content
+    target: $SNAP/data-dir/icons
+    default-provider: gtk-common-themes
+  sound-themes:
+    interface: content
+    target: $SNAP/data-dir/sounds
+    default-provider: gtk-common-themes
+
+layout:
+  /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1:
+    symlink: $SNAP/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1
+  /usr/share/xml/iso-codes:
+    symlink: $SNAP/usr/share/xml/iso-codes
 
 parts:
   aeroftp:
     plugin: nil
     source: .
+    stage-packages:
+      - libwebkit2gtk-4.1-0
+      - libgtk-3-0
+      - libayatana-appindicator3-1
+      - librsvg2-2
+      - libssl3
+      - libasound2
+      - libgstreamer1.0-0
+      - gstreamer1.0-plugins-base
+      - gstreamer1.0-plugins-good
+      - iso-codes
+      - libglu1-mesa
     override-build: |
-      # Copy pre-built binary only - use system libraries in classic mode
+      # Copy pre-built binary
       mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
       mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/applications
       
       if [ -f src-tauri/target/release/aeroftp ]; then
         cp src-tauri/target/release/aeroftp $SNAPCRAFT_PART_INSTALL/usr/bin/
@@ -58,4 +125,21 @@ parts:
         exit 1
       fi
       
+      # Copy icon
       cp icons/AeroFTP_simbol_color_512x512.png $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/aeroftp.png
+      
+      # Create desktop entry
+      cat > $SNAPCRAFT_PART_INSTALL/usr/share/applications/aeroftp.desktop << 'DESKTOP'
+      [Desktop Entry]
+      Name=AeroFTP
+      Comment=Modern FTP Client (Snap - Limited Access)
+      Exec=aeroftp
+      Icon=${SNAP}/usr/share/icons/hicolor/256x256/apps/aeroftp.png
+      Terminal=false
+      Type=Application
+      Categories=Network;FileTransfer;Development;
+      Keywords=ftp;sftp;file;transfer;upload;download;
+      StartupWMClass=AeroFTP
+      DESKTOP
+      # Remove leading whitespace from desktop file
+      sed -i 's/^      //' $SNAPCRAFT_PART_INSTALL/usr/share/applications/aeroftp.desktop
