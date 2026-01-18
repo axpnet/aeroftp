@@ -53,6 +53,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          # Install Snapcraft
+          sudo snap install snapcraft --classic
 
       - name: Install npm dependencies
         run: npm ci
@@ -61,6 +63,8 @@ jobs:
         run: npm run tauri build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Only needed if building snap, but good to have available
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
 
       # Upload directly to GitHub Release (only on tags)
       # Each platform uploads its own binaries - no intermediate artifacts needed
@@ -79,19 +83,29 @@ jobs:
             - Navigation sync between remote and local panels
             - Integrated DevTools with code editor and terminal
             - AeroCloud file synchronization
+            - Snap package with first-launch informational dialog
             
             📦 **Downloads:**
             - **Windows**: `.msi` installer or `.exe`
             - **macOS**: `.dmg` disk image
-            - **Linux**: `.deb`, `.rpm`, or `.AppImage`
+            - **Linux**: `.deb`, `.rpm`, `.snap`, or `.AppImage`
           draft: false
           prerelease: false
           files: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/rpm/*.rpm
             src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/snap/*.snap
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publish Snap to Snapcraft Store (only on tags)
+      - name: Publish to Snap Store
+        if: startsWith(github.ref, 'refs/tags/') && matrix.target == 'linux'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          snapcraft upload --release=stable src-tauri/target/release/bundle/snap/*.snap
 
       - name: Upload Windows binaries to Release
         if: startsWith(github.ref, 'refs/tags/') && matrix.target == 'windows'
