@@ -105,7 +105,14 @@ jobs:
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         run: |
-          snapcraft upload --release=stable src-tauri/target/release/bundle/snap/*.snap
+          SNAP_FILE=$(ls src-tauri/target/release/bundle/snap/*.snap | head -n 1)
+          if [ -f "$SNAP_FILE" ]; then
+            echo "Uploading $SNAP_FILE..."
+            snapcraft upload --release=stable "$SNAP_FILE"
+          else
+            echo "Error: No snap file found!"
+            exit 1
+          fi
 
       - name: Upload Windows binaries to Release
         if: startsWith(github.ref, 'refs/tags/') && matrix.target == 'windows'
