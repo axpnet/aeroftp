@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.9] - 2026-01-18
+
+### Added
+- **Per-Session Navigation Sync** 🔗: Each tab now maintains its own independent sync state
+  - Sync settings saved/restored when switching between tabs
+  - New connections start with sync disabled by default
+  - Sync state persists per-session, not globally
+
+- **Path Coherence Check** ⚠️: Visual warning when local path doesn't match remote server
+  - Orange warning icon replaces disk icon when mismatch detected
+  - Path text turns orange to highlight the issue
+  - Tooltip explains the mismatch
+
+- **AeroCloud Log Filter** ☁️: Toggle button to hide/show cloud sync messages
+  - New cloud icon button in Activity Log header
+  - Filter out "AeroCloud sync" messages when disabled
+  - Reduces log noise during active sync operations
+
+- **Tab Switch Logging** 📋: Reconnection status now logged in Activity Log
+  - "🔄 Reconnecting to {server}..." during connection
+  - "✅ Reconnected to {server}" on success
+  - "❌ Failed to reconnect to {server}" on error
+
+### Fixed
+- **Local path not restoring on tab switch**: Fixed race condition with explicit state capture
+- **Navigation sync staying active on new connections**: Now properly reset when connecting to new server
+- **Folder progress badge showing bytes**: Fixed to show file count [X/Y] instead of bytes
+
+### Changed
+- Session switching now uses captured state values to prevent race conditions
+- `handleNewTabFromSavedServer` also captures state before saving session
+
 ## [0.9.7] - 2026-01-17
 
 ### Added

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Download, Check, X, Clock, Loader2 } from 'lucide-react';
+import { Upload, Download, Check, X, Clock, Loader2, Folder } from 'lucide-react';
 
 export type TransferStatus = 'pending' | 'transferring' | 'completed' | 'error';
 export type TransferType = 'upload' | 'download';
@@ -16,6 +16,10 @@ export interface TransferItem {
     error?: string;
     startTime?: number;
     endTime?: number;
+    // For folder transfers
+    isFolder?: boolean;
+    totalFiles?: number;
+    completedFiles?: number;
 }
 
 interface TransferQueueProps {
@@ -156,9 +160,11 @@ export const TransferQueue: React.FC<TransferQueueProps> = ({
                         </span>
 
                         {/* Type Icon */}
-                        {item.type === 'upload'
-                            ? <Upload size={10} className="text-cyan-500 shrink-0" />
-                            : <Download size={10} className="text-orange-500 shrink-0" />
+                        {item.isFolder 
+                            ? <Folder size={10} className={item.type === 'upload' ? 'text-cyan-500 shrink-0' : 'text-orange-500 shrink-0'} />
+                            : item.type === 'upload'
+                                ? <Upload size={10} className="text-cyan-500 shrink-0" />
+                                : <Download size={10} className="text-orange-500 shrink-0" />
                         }
 
                         {/* Status Icon */}
@@ -169,6 +175,19 @@ export const TransferQueue: React.FC<TransferQueueProps> = ({
                             }`}>
                             {item.filename}
                         </span>
+
+                        {/* Folder file count badge */}
+                        {item.isFolder && item.totalFiles !== undefined && item.totalFiles > 0 && (
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                                item.status === 'completed' 
+                                    ? 'bg-green-900/50 text-green-400'
+                                    : item.status === 'transferring'
+                                        ? 'bg-cyan-900/50 text-cyan-400'
+                                        : 'bg-gray-700 text-gray-400'
+                            }`}>
+                                {item.completedFiles || 0}/{item.totalFiles}
+                            </span>
+                        )}
 
                         {/* Size */}
                         <span className="text-gray-600 shrink-0">
@@ -276,6 +295,29 @@ export const useTransferQueue = () => {
     const completeTransfer = (id: string) => updateStatus(id, 'completed', 100);
     const failTransfer = (id: string, error: string) => updateStatus(id, 'error', undefined, error);
 
+    // Update folder transfer progress (total files and completed count)
+    const updateFolderProgress = (id: string, totalFiles: number, completedFiles: number) => {
+        setItems(prev => prev.map(item =>
+            item.id === id
+                ? {
+                    ...item,
+                    totalFiles,
+                    completedFiles,
+                    progress: totalFiles > 0 ? Math.round((completedFiles / totalFiles) * 100) : 0
+                }
+                : item
+        ));
+    };
+
+    // Mark item as folder
+    const markAsFolder = (id: string, totalFiles?: number) => {
+        setItems(prev => prev.map(item =>
+            item.id === id
+                ? { ...item, isFolder: true, totalFiles: totalFiles || 0, completedFiles: 0 }
+                : item
+        ));
+    };
+
     const clear = () => {
         setItems([]);
         setIsVisible(false);
@@ -303,6 +345,8 @@ export const useTransferQueue = () => {
         setProgress,
         completeTransfer,
         failTransfer,
+        updateFolderProgress,
+        markAsFolder,
         clear,
         toggle
     };

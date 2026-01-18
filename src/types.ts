@@ -60,12 +60,19 @@ export interface TransferProgress {
   direction: 'download' | 'upload';
 }
 
-// Transfer event from backend
+// Transfer event from backend (includes transfers and deletes)
 export interface TransferEvent {
-  event_type: 'start' | 'progress' | 'complete' | 'error' | 'cancelled';
+  event_type: 
+    // Transfer events
+    | 'start' | 'progress' | 'complete' | 'error' | 'cancelled'
+    | 'file_start' | 'file_complete' | 'file_error'
+    // Delete events
+    | 'delete_start' | 'delete_complete' | 'delete_error'
+    | 'delete_file_start' | 'delete_file_complete' | 'delete_file_error'
+    | 'delete_dir_complete';
   transfer_id: string;
   filename: string;
-  direction: 'download' | 'upload';
+  direction: 'download' | 'upload' | 'local' | 'remote';
   message?: string;
   progress?: TransferProgress;
 }
@@ -116,6 +123,9 @@ export interface FtpSession {
   localFiles: LocalFile[];       // Cached local files
   lastActivity: Date;
   connectionParams: ConnectionParams;
+  // Per-session navigation sync state
+  isSyncNavigation?: boolean;
+  syncBasePaths?: { remote: string; local: string } | null;
 }
 
 // State for managing multiple tabs

@@ -14,7 +14,7 @@
 
 import * as React from 'react';
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { X, Trash2, ChevronDown, GripHorizontal, Terminal, Zap, Sparkles } from 'lucide-react';
+import { X, Trash2, ChevronDown, GripHorizontal, Terminal, Zap, Sparkles, Cloud } from 'lucide-react';
 import { useActivityLog, LogEntry, OperationType, getOperationIcon, formatTimestamp } from '../hooks/useActivityLog';
 import { useTranslation } from '../i18n';
 
@@ -313,6 +313,7 @@ export const ActivityLogPanel: React.FC<ActivityLogPanelProps> = ({
     const panelRef = useRef<HTMLDivElement>(null);
     const [autoScroll, setAutoScroll] = useState(true);
     const [filterType, setFilterType] = useState<OperationType | 'ALL'>('ALL');
+    const [showCloudSync, setShowCloudSync] = useState(true);  // Toggle to show/hide AeroCloud sync messages
     const [height, setHeight] = useState(initialHeight);
     const [isResizing, setIsResizing] = useState(false);
     const [localTheme, setLocalTheme] = useState<LogTheme>(themeProp);
@@ -361,9 +362,20 @@ export const ActivityLogPanel: React.FC<ActivityLogPanelProps> = ({
 
     // Filter entries
     const filteredEntries = useMemo(() => {
-        if (filterType === 'ALL') return entries;
-        return entries.filter(e => e.operation === filterType);
-    }, [entries, filterType]);
+        let result = entries;
+        
+        // Filter by operation type
+        if (filterType !== 'ALL') {
+            result = result.filter(e => e.operation === filterType);
+        }
+        
+        // Filter out AeroCloud sync messages if disabled
+        if (!showCloudSync) {
+            result = result.filter(e => !e.message.toLowerCase().includes('aerocloud'));
+        }
+        
+        return result;
+    }, [entries, filterType, showCloudSync]);
 
     // Find the latest entry for typewriter effect
     const latestEntryId = entries.length > 0 ? entries[entries.length - 1].id : null;
@@ -449,6 +461,15 @@ export const ActivityLogPanel: React.FC<ActivityLogPanelProps> = ({
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
+                    {/* AeroCloud sync filter toggle */}
+                    <button
+                        onClick={() => setShowCloudSync(!showCloudSync)}
+                        className={`p-1.5 rounded transition-all ${showCloudSync ? themeConfig.button : 'opacity-40 ' + themeConfig.button}`}
+                        title={showCloudSync ? 'Hide AeroCloud sync messages' : 'Show AeroCloud sync messages'}
+                    >
+                        <Cloud size={12} className={showCloudSync ? 'text-[#7dcfff]' : ''} />
+                    </button>
+
                     {/* Theme toggle */}
                     <button
                         onClick={toggleTheme}

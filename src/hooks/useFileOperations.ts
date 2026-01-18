@@ -201,17 +201,16 @@ export function useFileOperations({
             onConfirm: async () => {
                 setConfirmDialog(null);
                 try {
-                    await invoke('delete_remote_file', { path, isDir });
-                    activityLog.log('DELETE', `Deleted remote: ${fileName}`, 'success');
-                    toast.success('Deleted', fileName);
-                    await loadRemoteFiles();
+                    // Backend now emits detailed events for each file deleted
+                    const result = await invoke<string>('delete_remote_file', { path, isDir });
+                    toast.success('Deleted', result);
+                    // Refresh is handled by transfer_event listener in App.tsx
                 } catch (error) {
-                    activityLog.log('ERROR', `Failed to delete: ${fileName}`, 'error');
                     toast.error('Delete Failed', String(error));
                 }
             }
         });
-    }, [loadRemoteFiles, activityLog, toast, setConfirmDialog]);
+    }, [toast, setConfirmDialog]);
 
     const deleteLocalFile = useCallback((path: string) => {
         const fileName = path.split('/').pop() || path;
@@ -220,17 +219,16 @@ export function useFileOperations({
             onConfirm: async () => {
                 setConfirmDialog(null);
                 try {
-                    await invoke('delete_local_file', { path });
-                    activityLog.log('DELETE', `Deleted local: ${fileName}`, 'success');
-                    toast.success('Deleted', fileName);
-                    await loadLocalFiles(currentLocalPath);
+                    // Backend now emits detailed events for each file deleted
+                    const result = await invoke<string>('delete_local_file', { path });
+                    toast.success('Deleted', result);
+                    // Refresh is handled by transfer_event listener in App.tsx
                 } catch (error) {
-                    activityLog.log('ERROR', `Failed to delete: ${fileName}`, 'error');
                     toast.error('Delete Failed', String(error));
                 }
             }
         });
-    }, [loadLocalFiles, currentLocalPath, activityLog, toast, setConfirmDialog]);
+    }, [toast, setConfirmDialog]);
 
     const deleteMultipleRemoteFiles = useCallback((filesOverride?: string[]) => {
         const names = filesOverride || Array.from(selectedRemoteFiles);
@@ -240,33 +238,37 @@ export function useFileOperations({
             message: `Delete ${names.length} selected items?`,
             onConfirm: async () => {
                 setConfirmDialog(null);
-                const logId = activityLog.log('DELETE', `Deleting ${names.length} remote items...`, 'running');
+                // Backend emits detailed events for each file deleted
                 let deleted = 0;
+                let errors = 0;
                 for (const name of names) {
                     const file = remoteFiles.find(f => f.name === name);
                     if (file) {
                         try {
-                            await invoke('delete_remote_file', { path: file.path, isDir: file.is_dir });
+                            await invoke<string>('delete_remote_file', { path: file.path, isDir: file.is_dir });
                             deleted++;
-                            activityLog.updateEntry(logId, { message: `Deleting remote: ${deleted}/${names.length}...` });
-                        } catch { }
+                        } catch {
+                            errors++;
+                        }
                     }
                 }
-                await loadRemoteFiles();
                 setSelectedRemoteFiles(new Set());
+                // Refresh handled by transfer_event listener for each delete
 
-                // Success message logic
                 const folderCount = names.filter(n => remoteFiles.find(f => f.name === n)?.is_dir).length;
                 const fileCount = names.length - folderCount;
                 const messages = [];
                 if (folderCount > 0) messages.push(`${folderCount} folder${folderCount > 1 ? 's' : ''}`);
                 if (fileCount > 0) messages.push(`${fileCount} file${fileCount > 1 ? 's' : ''}`);
-
-                activityLog.updateEntry(logId, { status: 'success', message: `Deleted ${messages.join(' and ')} (remote)` });
-                toast.success(messages.join(', '), `${messages.join(' and ')} deleted`);
+                
+                if (errors > 0) {
+                    toast.warning('Delete Complete', `${deleted} deleted, ${errors} failed`);
+                } else {
+                    toast.success(messages.join(', '), `${messages.join(' and ')} deleted`);
+                }
             }
         });
-    }, [selectedRemoteFiles, remoteFiles, loadRemoteFiles, activityLog, toast, setConfirmDialog, setSelectedRemoteFiles]);
+    }, [selectedRemoteFiles, remoteFiles, toast, setConfirmDialog, setSelectedRemoteFiles]);
 
     const deleteMultipleLocalFiles = useCallback((filesOverride?: string[]) => {
         const names = filesOverride || Array.from(selectedLocalFiles);
@@ -276,33 +278,37 @@ export function useFileOperations({
             message: `Delete ${names.length} selected items?`,
             onConfirm: async () => {
                 setConfirmDialog(null);
-                const logId = activityLog.log('DELETE', `Deleting ${names.length} local items...`, 'running');
+                // Backend emits detailed events for each file deleted
                 let deleted = 0;
+                let errors = 0;
                 for (const name of names) {
                     const file = localFiles.find(f => f.name === name);
                     if (file) {
                         try {
-                            await invoke('delete_local_file', { path: file.path });
+                            await invoke<string>('delete_local_file', { path: file.path });
                             deleted++;
-                            activityLog.updateEntry(logId, { message: `Deleting local: ${deleted}/${names.length}...` });
-                        } catch { }
+                        } catch {
+                            errors++;
+                        }
                     }
                 }
-                await loadLocalFiles(currentLocalPath);
                 setSelectedLocalFiles(new Set());
+                // Refresh handled by transfer_event listener for each delete
 
-                // Success message logic
                 const folderCount = names.filter(n => localFiles.find(f => f.name === n)?.is_dir).length;
                 const fileCount = names.length - folderCount;
                 const messages = [];
                 if (folderCount > 0) messages.push(`${folderCount} folder${folderCount > 1 ? 's' : ''}`);
                 if (fileCount > 0) messages.push(`${fileCount} file${fileCount > 1 ? 's' : ''}`);
 
-                activityLog.updateEntry(logId, { status: 'success', message: `Deleted ${messages.join(' and ')} (local)` });
-                toast.success(messages.join(', '), `${messages.join(' and ')} deleted`);
+                if (errors > 0) {
+                    toast.warning('Delete Complete', `${deleted} deleted, ${errors} failed`);
+                } else {
+                    toast.success(messages.join(', '), `${messages.join(' and ')} deleted`);
+                }
             }
         });
-    }, [selectedLocalFiles, localFiles, loadLocalFiles, currentLocalPath, activityLog, toast, setConfirmDialog, setSelectedLocalFiles]);
+    }, [selectedLocalFiles, localFiles, toast, setConfirmDialog, setSelectedLocalFiles]);
 
     return {
         loadRemoteFiles,

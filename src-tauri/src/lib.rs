@@ -436,8 +436,7 @@ async fn download_folder(
         progress: None,
     });
     
-    // Create local directory - use local_path directly (frontend already provides the destination)
-    // Don't append folder_name again since local_path is the full destination path
+    // Create local directory
     let local_folder_path = PathBuf::from(&params.local_path);
     
     if let Err(e) = tokio::fs::create_dir_all(&local_folder_path).await {
@@ -456,104 +455,202 @@ async fn download_folder(
     let mut ftp_manager = state.ftp_manager.lock().await;
     let original_path = ftp_manager.current_path();
     
-    // Change to the remote folder
-    if let Err(e) = ftp_manager.change_dir(&params.remote_path).await {
-        let _ = app.emit("transfer_event", TransferEvent {
-            event_type: "error".to_string(),
-            transfer_id: transfer_id.clone(),
-            filename: folder_name.clone(),
-            direction: "download".to_string(),
-            message: Some(format!("Failed to access remote folder: {}", e)),
-            progress: None,
-        });
-        return Err(format!("Failed to access remote folder: {}", e));
+    // First, collect all files recursively using a stack-based approach
+    // This avoids deep recursion and collects full inventory first
+    
+    #[derive(Debug, Clone)]
+    struct DownloadItem {
+        remote_path: String,      // Full remote path
+        local_path: PathBuf,      // Full local path
+        is_dir: bool,
+        size: u64,
+        name: String,
     }
     
-    // List files in the folder
-    let files = match ftp_manager.list_files().await {
-        Ok(f) => f,
-        Err(e) => {
-            let _ = ftp_manager.change_dir(&original_path).await;
-            let _ = app.emit("transfer_event", TransferEvent {
-                event_type: "error".to_string(),
-                transfer_id: transfer_id.clone(),
-                filename: folder_name.clone(),
-                direction: "download".to_string(),
-                message: Some(format!("Failed to list remote files: {}", e)),
-                progress: None,
-            });
-            return Err(format!("Failed to list remote files: {}", e));
+    let mut items_to_download: Vec<DownloadItem> = Vec::new();
+    let mut dirs_to_scan: Vec<(String, PathBuf)> = vec![(params.remote_path.clone(), local_folder_path.clone())];
+    let mut scan_counter: u64 = 0;
+    let mut last_scan_emit = std::time::Instant::now();
+    
+    // Scan phase: collect all files and directories recursively
+    while let Some((remote_dir, local_dir)) = dirs_to_scan.pop() {
+        // Change to remote directory
+        if let Err(e) = ftp_manager.change_dir(&remote_dir).await {
+            warn!("Cannot access remote directory {}: {}", remote_dir, e);
+            continue;
         }
-    };
-    
-    info!("Found {} files ({} are directories) in remote folder", files.len(), files.iter().filter(|f| f.is_dir).count());
-    
-    let total_items = files.len();
-    let mut processed_items = 0;
-    
-    // Process each file and subdirectory
-    for file in &files {
-        info!("Processing: {} (is_dir: {})", file.name, file.is_dir);
         
-        if file.is_dir {
-            // Create local subdirectory
-            let local_subdir = local_folder_path.join(&file.name);
-            if let Err(e) = tokio::fs::create_dir_all(&local_subdir).await {
-                warn!("Failed to create subdirectory {}: {}", local_subdir.display(), e);
+        // List files
+        let files = match ftp_manager.list_files().await {
+            Ok(f) => f,
+            Err(e) => {
+                warn!("Cannot list files in {}: {}", remote_dir, e);
                 continue;
             }
+        };
+        
+        for file in files {
+            let remote_file_path = format!("{}/{}", remote_dir.trim_end_matches('/'), file.name);
+            let local_file_path = local_dir.join(&file.name);
             
-            // Change to subdirectory and download its contents
-            let subdir_remote_path = file.name.clone();
-            if ftp_manager.change_dir(&subdir_remote_path).await.is_ok() {
-                // List and download files in subdirectory
-                if let Ok(subfiles) = ftp_manager.list_files().await {
-                    for subfile in subfiles {
-                        if !subfile.is_dir {
-                            let local_file_path = local_subdir.join(&subfile.name);
-                            let _ = ftp_manager.download_file(&subfile.name, local_file_path.to_string_lossy().as_ref()).await;
-                        }
-                    }
-                }
-                // Go back to parent directory
-                let _ = ftp_manager.change_dir("..").await;
+            if file.is_dir {
+                // Add directory to scan queue
+                dirs_to_scan.push((remote_file_path.clone(), local_file_path.clone()));
+                // Also add it as an item so we create the local directory
+                items_to_download.push(DownloadItem {
+                    remote_path: remote_file_path,
+                    local_path: local_file_path,
+                    is_dir: true,
+                    size: 0,
+                    name: file.name,
+                });
+            } else {
+                // Add file to download list
+                items_to_download.push(DownloadItem {
+                    remote_path: remote_file_path,
+                    local_path: local_file_path,
+                    is_dir: false,
+                    size: file.size.unwrap_or(0),
+                    name: file.name,
+                });
             }
-            processed_items += 1;
+            
+            scan_counter += 1;
+            
+            // Emit scan progress every 500ms or every 100 files
+            if last_scan_emit.elapsed().as_millis() > 500 || scan_counter % 100 == 0 {
+                let files_found = items_to_download.iter().filter(|i| !i.is_dir).count();
+                let dirs_found = items_to_download.iter().filter(|i| i.is_dir).count();
+                let _ = app.emit("transfer_event", TransferEvent {
+                    event_type: "progress".to_string(),
+                    transfer_id: transfer_id.clone(),
+                    filename: folder_name.clone(),
+                    direction: "download".to_string(),
+                    message: Some(format!("Scanning... {} files, {} folders found", files_found, dirs_found)),
+                    progress: None,
+                });
+                last_scan_emit = std::time::Instant::now();
+            }
+        }
+    }
+    
+    // Sort items: directories first (to create them), then files
+    items_to_download.sort_by(|a, b| {
+        match (a.is_dir, b.is_dir) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.remote_path.cmp(&b.remote_path),
+        }
+    });
+    
+    let total_files = items_to_download.iter().filter(|i| !i.is_dir).count();
+    let total_dirs = items_to_download.iter().filter(|i| i.is_dir).count();
+    let total_size: u64 = items_to_download.iter().map(|i| i.size).sum();
+    
+    info!("Found {} files and {} directories to download (total size: {} bytes)", 
+          total_files, total_dirs, total_size);
+    
+    // Emit scan complete event
+    let _ = app.emit("transfer_event", TransferEvent {
+        event_type: "progress".to_string(),
+        transfer_id: transfer_id.clone(),
+        filename: folder_name.clone(),
+        direction: "download".to_string(),
+        message: Some(format!("Found {} files in {} folders", total_files, total_dirs)),
+        progress: None,
+    });
+    
+    // Download phase: process all items
+    let mut downloaded_files = 0;
+    let mut errors = 0;
+    
+    for item in &items_to_download {
+        if item.is_dir {
+            // Create local directory
+            if let Err(e) = tokio::fs::create_dir_all(&item.local_path).await {
+                warn!("Failed to create directory {}: {}", item.local_path.display(), e);
+                errors += 1;
+            }
         } else {
-            let local_file_path = local_folder_path.join(&file.name);
-            let remote_file_path = file.name.clone();
+            // Download file
+            // First, change to the file's parent directory on the server
+            if let Some(parent) = PathBuf::from(&item.remote_path).parent() {
+                let parent_str = parent.to_string_lossy().to_string();
+                if !parent_str.is_empty() {
+                    let _ = ftp_manager.change_dir(&parent_str).await;
+                }
+            }
             
-            info!("Downloading: {} -> {}", remote_file_path, local_file_path.display());
+            // Emit file start event
+            let file_transfer_id = format!("{}-{}", transfer_id, downloaded_files);
+            let _ = app.emit("transfer_event", TransferEvent {
+                event_type: "file_start".to_string(),
+                transfer_id: file_transfer_id.clone(),
+                filename: item.name.clone(),
+                direction: "download".to_string(),
+                message: Some(format!("Downloading: {}", item.name)),
+                progress: Some(TransferProgress {
+                    transfer_id: file_transfer_id.clone(),
+                    filename: item.name.clone(),
+                    transferred: 0,
+                    total: item.size,
+                    percentage: 0,
+                    speed_bps: 0,
+                    eta_seconds: 0,
+                    direction: "download".to_string(),
+                }),
+            });
             
-            match ftp_manager.download_file(&remote_file_path, local_file_path.to_string_lossy().as_ref()).await {
+            // Download the file
+            let file_name_only = PathBuf::from(&item.remote_path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| item.name.clone());
+                
+            match ftp_manager.download_file(&file_name_only, item.local_path.to_string_lossy().as_ref()).await {
                 Ok(_) => {
-                    processed_items += 1;
-                    let percentage = if total_items > 0 {
-                        ((processed_items as f64 / total_items as f64) * 100.0) as u8
+                    downloaded_files += 1;
+                    
+                    let percentage = if total_files > 0 {
+                        ((downloaded_files as f64 / total_files as f64) * 100.0) as u8
                     } else {
                         100
                     };
                     
+                    // Emit file complete event
                     let _ = app.emit("transfer_event", TransferEvent {
-                        event_type: "progress".to_string(),
-                        transfer_id: transfer_id.clone(),
-                        filename: folder_name.clone(),
+                        event_type: "file_complete".to_string(),
+                        transfer_id: file_transfer_id.clone(),
+                        filename: item.name.clone(),
                         direction: "download".to_string(),
-                        message: Some(format!("Downloaded {}/{} items", processed_items, total_items)),
+                        message: Some(format!("Downloaded: {} ({}/{})", item.name, downloaded_files, total_files)),
                         progress: Some(TransferProgress {
                             transfer_id: transfer_id.clone(),
-                            filename: file.name.clone(),
-                            transferred: processed_items as u64,
-                            total: total_items as u64,
+                            filename: item.name.clone(),
+                            transferred: item.size,
+                            total: item.size,
                             percentage,
                             speed_bps: 0,
                             eta_seconds: 0,
                             direction: "download".to_string(),
                         }),
                     });
+                    
+                    info!("Downloaded: {} ({}/{})", item.name, downloaded_files, total_files);
                 }
                 Err(e) => {
-                    warn!("Failed to download file {}: {}", file.name, e);
+                    errors += 1;
+                    warn!("Failed to download {}: {}", item.name, e);
+                    
+                    // Emit file error event
+                    let _ = app.emit("transfer_event", TransferEvent {
+                        event_type: "file_error".to_string(),
+                        transfer_id: file_transfer_id,
+                        filename: item.name.clone(),
+                        direction: "download".to_string(),
+                        message: Some(format!("Failed: {} - {}", item.name, e)),
+                        progress: None,
+                    });
                 }
             }
         }
@@ -563,18 +660,27 @@ async fn download_folder(
     let _ = ftp_manager.change_dir(&original_path).await;
     
     // Emit complete event
+    let result_message = if errors > 0 {
+        format!("Downloaded {} files ({} errors)", downloaded_files, errors)
+    } else {
+        format!("Downloaded {} files successfully", downloaded_files)
+    };
+    
     let _ = app.emit("transfer_event", TransferEvent {
         event_type: "complete".to_string(),
         transfer_id: transfer_id.clone(),
         filename: folder_name.clone(),
         direction: "download".to_string(),
-        message: Some(format!("Folder download complete: {} ({} items)", folder_name, processed_items)),
+        message: Some(result_message.clone()),
         progress: None,
     });
     
-    Ok(format!("Downloaded folder: {} ({} items)", folder_name, processed_items))
+    Ok(result_message)
 }
 
+/// Upload an entire folder to the FTP server with full recursive support.
+/// Uses stack-based iterative traversal to upload ALL files in ALL subdirectories.
+/// Emits per-file events for activity log visibility.
 #[tauri::command]
 async fn upload_folder(
     app: AppHandle,
@@ -582,7 +688,7 @@ async fn upload_folder(
     params: UploadFolderParams
 ) -> Result<String, String> {
     
-    info!("Uploading folder: {} -> {}", params.local_path, params.remote_path);
+    info!("Uploading folder recursively: {} -> {}", params.local_path, params.remote_path);
     
     let folder_name = PathBuf::from(&params.local_path)
         .file_name()
@@ -591,20 +697,19 @@ async fn upload_folder(
     
     let transfer_id = format!("ul-folder-{}", chrono::Utc::now().timestamp_millis());
     
-    // Emit start event
+    // Emit folder upload start event
     let _ = app.emit("transfer_event", TransferEvent {
         event_type: "start".to_string(),
         transfer_id: transfer_id.clone(),
         filename: folder_name.clone(),
         direction: "upload".to_string(),
-        message: Some(format!("Starting folder upload: {}", folder_name)),
+        message: Some(format!("Scanning folder: {}", folder_name)),
         progress: None,
     });
     
-    // Read local directory
-    let local_path = PathBuf::from(&params.local_path);
+    let local_base_path = PathBuf::from(&params.local_path);
     
-    if !local_path.is_dir() {
+    if !local_base_path.is_dir() {
         let _ = app.emit("transfer_event", TransferEvent {
             event_type: "error".to_string(),
             transfer_id: transfer_id.clone(),
@@ -616,92 +721,217 @@ async fn upload_folder(
         return Err("Source is not a directory".to_string());
     }
     
-    // Collect files and subdirectories to upload
-    let mut files_to_upload: Vec<PathBuf> = Vec::new();
-    let mut subdirs_to_upload: Vec<PathBuf> = Vec::new();
-    let mut read_dir = match tokio::fs::read_dir(&local_path).await {
-        Ok(rd) => rd,
-        Err(e) => {
-            let _ = app.emit("transfer_event", TransferEvent {
-                event_type: "error".to_string(),
-                transfer_id: transfer_id.clone(),
-                filename: folder_name.clone(),
-                direction: "upload".to_string(),
-                message: Some(format!("Failed to read local directory: {}", e)),
-                progress: None,
-            });
-            return Err(format!("Failed to read local directory: {}", e));
-        }
-    };
-    
-    while let Ok(Some(entry)) = read_dir.next_entry().await {
-        let path = entry.path();
-        if path.is_file() {
-            files_to_upload.push(path);
-        } else if path.is_dir() {
-            subdirs_to_upload.push(path);
-        }
-    }
-    
-    let total_items = files_to_upload.len() + subdirs_to_upload.len();
-    info!("Found {} files and {} subdirectories to upload in folder {}", files_to_upload.len(), subdirs_to_upload.len(), folder_name);
-    
-    // Create remote directory
+    // Get FTP connection
     let mut ftp_manager = state.ftp_manager.lock().await;
     let current_remote_path = ftp_manager.current_path();
     
-    // Use remote_path directly - frontend already provides the full destination path
-    let remote_folder_path = if params.remote_path.is_empty() || params.remote_path == "." {
+    // Determine remote base folder path
+    let remote_base_path = if params.remote_path.is_empty() || params.remote_path == "." {
         if current_remote_path == "/" {
             format!("/{}", folder_name)
         } else {
             format!("{}/{}", current_remote_path, folder_name)
         }
     } else {
-        // remote_path already contains the full destination
         params.remote_path.clone()
     };
     
-    info!("Creating remote folder: {}", remote_folder_path);
+    // ============ PHASE 1: Recursively scan ALL local files and directories ============
+    // Using stack-based traversal instead of recursion for better control
     
-    // Try to create the remote folder (ignore error if it already exists)
-    match ftp_manager.mkdir(&remote_folder_path).await {
-        Ok(_) => info!("Created remote folder: {}", remote_folder_path),
-        Err(e) => info!("Could not create folder (may already exist): {}", e),
+    struct UploadItem {
+        local_path: PathBuf,
+        remote_path: String,
+        is_dir: bool,
+        size: u64,
+        name: String,
     }
     
-    let mut uploaded_files = 0;
+    let mut items_to_upload: Vec<UploadItem> = Vec::new();
+    let mut dirs_to_create: Vec<String> = Vec::new();
     
-    // Upload each file
-    for file_path in &files_to_upload {
-        let file_name = file_path.file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "file".to_string());
+    // Stack for directory traversal: (local_dir_path, remote_dir_path)
+    let mut dirs_to_scan: Vec<(PathBuf, String)> = vec![(local_base_path.clone(), remote_base_path.clone())];
+    
+    // Add the root folder to create
+    dirs_to_create.push(remote_base_path.clone());
+    
+    info!("Phase 1: Scanning local directory structure...");
+    
+    let mut scan_counter: u64 = 0;
+    let mut last_scan_emit = std::time::Instant::now();
+    
+    while let Some((current_local_dir, current_remote_dir)) = dirs_to_scan.pop() {
+        let mut read_dir = match tokio::fs::read_dir(&current_local_dir).await {
+            Ok(rd) => rd,
+            Err(e) => {
+                warn!("Failed to read directory {:?}: {}", current_local_dir, e);
+                continue;
+            }
+        };
         
-        let remote_file_path = format!("{}/{}", remote_folder_path, file_name);
-        
-        info!("Uploading file: {} -> {}", file_path.display(), remote_file_path);
-        
-        match ftp_manager.upload_file(file_path.to_string_lossy().as_ref(), &remote_file_path).await {
-            Ok(_) => {
-                uploaded_files += 1;
-                let percentage = if total_items > 0 {
-                    ((uploaded_files as f64 / total_items as f64) * 100.0) as u8
-                } else {
-                    100
-                };
+        while let Ok(Some(entry)) = read_dir.next_entry().await {
+            let local_path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            let remote_path = format!("{}/{}", current_remote_dir, name);
+            
+            if local_path.is_dir() {
+                // Queue this directory for scanning
+                dirs_to_scan.push((local_path.clone(), remote_path.clone()));
+                // Add directory to create list
+                dirs_to_create.push(remote_path.clone());
                 
+                items_to_upload.push(UploadItem {
+                    local_path,
+                    remote_path,
+                    is_dir: true,
+                    size: 0,
+                    name,
+                });
+            } else if local_path.is_file() {
+                let size = entry.metadata().await.map(|m| m.len()).unwrap_or(0);
+                
+                items_to_upload.push(UploadItem {
+                    local_path,
+                    remote_path,
+                    is_dir: false,
+                    size,
+                    name,
+                });
+            }
+            
+            scan_counter += 1;
+            
+            // Emit scan progress every 500ms or every 100 files
+            if last_scan_emit.elapsed().as_millis() > 500 || scan_counter % 100 == 0 {
+                let files_found = items_to_upload.iter().filter(|i| !i.is_dir).count();
+                let dirs_found = dirs_to_create.len();
                 let _ = app.emit("transfer_event", TransferEvent {
                     event_type: "progress".to_string(),
                     transfer_id: transfer_id.clone(),
                     filename: folder_name.clone(),
                     direction: "upload".to_string(),
-                    message: Some(format!("Uploaded {}/{} files", uploaded_files, total_items)),
+                    message: Some(format!("Scanning... {} files, {} folders found", files_found, dirs_found)),
+                    progress: None,
+                });
+                last_scan_emit = std::time::Instant::now();
+            }
+        }
+    }
+    
+    // Separate files from directories
+    let files_to_upload: Vec<&UploadItem> = items_to_upload.iter()
+        .filter(|item| !item.is_dir)
+        .collect();
+    
+    let total_files = files_to_upload.len();
+    let total_dirs = dirs_to_create.len();
+    let total_size: u64 = files_to_upload.iter().map(|f| f.size).sum();
+    
+    info!("Phase 1 complete: Found {} files in {} directories (total: {} bytes)", 
+          total_files, total_dirs, total_size);
+    
+    // Update event with scan results
+    let _ = app.emit("transfer_event", TransferEvent {
+        event_type: "progress".to_string(),
+        transfer_id: transfer_id.clone(),
+        filename: folder_name.clone(),
+        direction: "upload".to_string(),
+        message: Some(format!("Found {} files in {} folders to upload", total_files, total_dirs)),
+        progress: None,
+    });
+    
+    // ============ PHASE 2: Create all remote directories first ============
+    info!("Phase 2: Creating {} remote directories...", total_dirs);
+    
+    // Sort directories by depth (shortest first) to ensure parent dirs exist
+    let mut dirs_sorted = dirs_to_create.clone();
+    dirs_sorted.sort_by(|a, b| a.matches('/').count().cmp(&b.matches('/').count()));
+    
+    for remote_dir in &dirs_sorted {
+        match ftp_manager.mkdir(remote_dir).await {
+            Ok(_) => info!("Created remote directory: {}", remote_dir),
+            Err(e) => {
+                // Ignore "directory exists" errors
+                let err_str = e.to_string().to_lowercase();
+                if !err_str.contains("exist") && !err_str.contains("550") {
+                    warn!("Could not create directory {}: {}", remote_dir, e);
+                }
+            }
+        }
+    }
+    
+    // ============ PHASE 3: Upload all files with per-file events ============
+    info!("Phase 3: Uploading {} files...", total_files);
+    
+    let mut uploaded_files = 0u64;
+    let mut errors = 0u64;
+    
+    for item in &files_to_upload {
+        let file_transfer_id = format!("ul-{}-{}", transfer_id, uploaded_files);
+        
+        // Emit file_start event for activity log
+        let _ = app.emit("transfer_event", TransferEvent {
+            event_type: "file_start".to_string(),
+            transfer_id: file_transfer_id.clone(),
+            filename: item.name.clone(),
+            direction: "upload".to_string(),
+            message: Some(format!("Uploading: {}", item.remote_path)),
+            progress: Some(TransferProgress {
+                transfer_id: file_transfer_id.clone(),
+                filename: item.name.clone(),
+                transferred: 0,
+                total: item.size,
+                percentage: 0,
+                speed_bps: 0,
+                eta_seconds: 0,
+                direction: "upload".to_string(),
+            }),
+        });
+        
+        info!("Uploading [{}/{}]: {} -> {}", 
+              uploaded_files + 1, total_files, item.local_path.display(), item.remote_path);
+        
+        match ftp_manager.upload_file(item.local_path.to_string_lossy().as_ref(), &item.remote_path).await {
+            Ok(_) => {
+                uploaded_files += 1;
+                let percentage = if total_files > 0 {
+                    ((uploaded_files as f64 / total_files as f64) * 100.0) as u8
+                } else {
+                    100
+                };
+                
+                // Emit file_complete event
+                let _ = app.emit("transfer_event", TransferEvent {
+                    event_type: "file_complete".to_string(),
+                    transfer_id: file_transfer_id.clone(),
+                    filename: item.name.clone(),
+                    direction: "upload".to_string(),
+                    message: Some(format!("Uploaded: {} ({} bytes)", item.name, item.size)),
+                    progress: Some(TransferProgress {
+                        transfer_id: file_transfer_id,
+                        filename: item.name.clone(),
+                        transferred: item.size,
+                        total: item.size,
+                        percentage: 100,
+                        speed_bps: 0,
+                        eta_seconds: 0,
+                        direction: "upload".to_string(),
+                    }),
+                });
+                
+                // Emit folder progress event
+                let _ = app.emit("transfer_event", TransferEvent {
+                    event_type: "progress".to_string(),
+                    transfer_id: transfer_id.clone(),
+                    filename: folder_name.clone(),
+                    direction: "upload".to_string(),
+                    message: Some(format!("Uploaded {}/{} files", uploaded_files, total_files)),
                     progress: Some(TransferProgress {
                         transfer_id: transfer_id.clone(),
-                        filename: file_name,
-                        transferred: uploaded_files as u64,
-                        total: total_items as u64,
+                        filename: folder_name.clone(),
+                        transferred: uploaded_files,
+                        total: total_files as u64,
                         percentage,
                         speed_bps: 0,
                         eta_seconds: 0,
@@ -710,50 +940,39 @@ async fn upload_folder(
                 });
             }
             Err(e) => {
-                warn!("Failed to upload file {}: {}", file_name, e);
-            }
-        }
-    }
-    
-    // Upload subdirectories recursively (one level deep for now)
-    for subdir_path in &subdirs_to_upload {
-        let subdir_name = subdir_path.file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "subdir".to_string());
-        
-        let remote_subdir_path = format!("{}/{}", remote_folder_path, subdir_name);
-        
-        // Create remote subdirectory
-        let _ = ftp_manager.mkdir(&remote_subdir_path).await;
-        
-        // Read and upload files from subdirectory
-        if let Ok(mut sub_read_dir) = tokio::fs::read_dir(subdir_path).await {
-            while let Ok(Some(entry)) = sub_read_dir.next_entry().await {
-                let path = entry.path();
-                if path.is_file() {
-                    let file_name = path.file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| "file".to_string());
-                    
-                    let remote_file_path = format!("{}/{}", remote_subdir_path, file_name);
-                    let _ = ftp_manager.upload_file(path.to_string_lossy().as_ref(), &remote_file_path).await;
-                    uploaded_files += 1;
-                }
+                errors += 1;
+                warn!("Failed to upload file {}: {}", item.name, e);
+                
+                // Emit file_error event
+                let _ = app.emit("transfer_event", TransferEvent {
+                    event_type: "file_error".to_string(),
+                    transfer_id: file_transfer_id,
+                    filename: item.name.clone(),
+                    direction: "upload".to_string(),
+                    message: Some(format!("Failed to upload {}: {}", item.name, e)),
+                    progress: None,
+                });
             }
         }
     }
     
     // Emit complete event
+    let result_message = if errors > 0 {
+        format!("Uploaded {} files ({} errors)", uploaded_files, errors)
+    } else {
+        format!("Uploaded {} files successfully", uploaded_files)
+    };
+    
     let _ = app.emit("transfer_event", TransferEvent {
         event_type: "complete".to_string(),
         transfer_id: transfer_id.clone(),
         filename: folder_name.clone(),
         direction: "upload".to_string(),
-        message: Some(format!("Folder upload complete: {} ({} items)", folder_name, uploaded_files)),
+        message: Some(result_message.clone()),
         progress: None,
     });
     
-    Ok(format!("Uploaded folder: {} ({} items)", folder_name, uploaded_files))
+    Ok(result_message)
 }
 
 #[tauri::command]
@@ -866,21 +1085,399 @@ async fn open_in_file_manager(path: String) -> Result<(), String> {
 
 // ============ File Operations Commands ============
 
+/// Delete a remote file or folder with detailed event emission for each deleted item.
+/// For folders, recursively scans and emits events for each file deleted.
 #[tauri::command]
-async fn delete_remote_file(state: State<'_, AppState>, path: String, is_dir: bool) -> Result<(), String> {
+async fn delete_remote_file(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    path: String,
+    is_dir: bool
+) -> Result<String, String> {
     let mut ftp_manager = state.ftp_manager.lock().await;
-
-    if is_dir {
-        ftp_manager.delete_folder_recursive(&path)
-            .await
-            .map_err(|e| format!("Failed to delete directory: {}", e))?;
+    
+    let file_name = path.split('/').last().unwrap_or(&path).to_string();
+    let delete_id = format!("del-remote-{}", chrono::Utc::now().timestamp_millis());
+    
+    if !is_dir {
+        // Single file delete - simple case
+        let _ = app.emit("transfer_event", TransferEvent {
+            event_type: "delete_start".to_string(),
+            transfer_id: delete_id.clone(),
+            filename: file_name.clone(),
+            direction: "remote".to_string(),
+            message: Some(format!("Deleting remote file: {}", file_name)),
+            progress: None,
+        });
+        
+        match ftp_manager.remove(&path).await {
+            Ok(_) => {
+                let _ = app.emit("transfer_event", TransferEvent {
+                    event_type: "delete_complete".to_string(),
+                    transfer_id: delete_id.clone(),
+                    filename: file_name.clone(),
+                    direction: "remote".to_string(),
+                    message: Some(format!("Deleted remote file: {}", file_name)),
+                    progress: None,
+                });
+                Ok(format!("Deleted: {}", file_name))
+            }
+            Err(e) => {
+                let _ = app.emit("transfer_event", TransferEvent {
+                    event_type: "delete_error".to_string(),
+                    transfer_id: delete_id.clone(),
+                    filename: file_name.clone(),
+                    direction: "remote".to_string(),
+                    message: Some(format!("Failed to delete: {}", e)),
+                    progress: None,
+                });
+                Err(format!("Failed to delete file: {}", e))
+            }
+        }
     } else {
-        ftp_manager.remove(&path)
-            .await
-            .map_err(|e| format!("Failed to delete file: {}", e))?;
+        // Folder delete - scan first, then delete with events
+        let _ = app.emit("transfer_event", TransferEvent {
+            event_type: "delete_start".to_string(),
+            transfer_id: delete_id.clone(),
+            filename: file_name.clone(),
+            direction: "remote".to_string(),
+            message: Some(format!("Scanning remote folder: {}", file_name)),
+            progress: None,
+        });
+        
+        let original_path = ftp_manager.current_path();
+        
+        // Build absolute target path
+        let target_path = if path.starts_with('/') {
+            path.clone()
+        } else {
+            format!("{}/{}", original_path, path)
+        };
+        
+        // Phase 1: Collect all files and directories recursively
+        struct DeleteItem {
+            path: String,
+            name: String,
+        }
+        
+        let mut files_to_delete: Vec<DeleteItem> = Vec::new();
+        let mut dirs_to_delete: Vec<String> = Vec::new();
+        let mut dirs_to_scan: Vec<String> = vec![target_path.clone()];
+        
+        while let Some(current_dir) = dirs_to_scan.pop() {
+            if ftp_manager.change_dir(&current_dir).await.is_err() {
+                continue;
+            }
+            
+            let files = match ftp_manager.list_files().await {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+            
+            for file in files {
+                let file_path = format!("{}/{}", current_dir, file.name);
+                
+                if file.is_dir {
+                    dirs_to_scan.push(file_path.clone());
+                } else {
+                    files_to_delete.push(DeleteItem {
+                        path: file_path,
+                        name: file.name,
+                    });
+                }
+            }
+            
+            // Add directory to delete list (will be deleted after its contents)
+            dirs_to_delete.push(current_dir);
+        }
+        
+        let total_files = files_to_delete.len();
+        let total_dirs = dirs_to_delete.len();
+        
+        info!("Found {} files and {} directories to delete in {}", total_files, total_dirs, file_name);
+        
+        let _ = app.emit("transfer_event", TransferEvent {
+            event_type: "progress".to_string(),
+            transfer_id: delete_id.clone(),
+            filename: file_name.clone(),
+            direction: "remote".to_string(),
+            message: Some(format!("Found {} files in {} folders to delete", total_files, total_dirs)),
+            progress: None,
+        });
+        
+        // Phase 2: Delete all files with events
+        let mut deleted_files = 0u64;
+        let mut errors = 0u64;
+        
+        for item in &files_to_delete {
+            let file_delete_id = format!("{}-file-{}", delete_id, deleted_files);
+            
+            let _ = app.emit("transfer_event", TransferEvent {
+                event_type: "delete_file_start".to_string(),
+                transfer_id: file_delete_id.clone(),
+                filename: item.name.clone(),
+                direction: "remote".to_string(),
+                message: Some(format!("Deleting: {}", item.path)),
+                progress: None,
+            });
+            
+            match ftp_manager.remove(&item.path).await {
+                Ok(_) => {
+                    deleted_files += 1;
+                    let _ = app.emit("transfer_event", TransferEvent {
+                        event_type: "delete_file_complete".to_string(),
+                        transfer_id: file_delete_id,
+                        filename: item.name.clone(),
+                        direction: "remote".to_string(),
+                        message: Some(format!("Deleted: {}", item.name)),
+                        progress: None,
+                    });
+                }
+                Err(e) => {
+                    errors += 1;
+                    warn!("Failed to delete {}: {}", item.path, e);
+                    let _ = app.emit("transfer_event", TransferEvent {
+                        event_type: "delete_file_error".to_string(),
+                        transfer_id: file_delete_id,
+                        filename: item.name.clone(),
+                        direction: "remote".to_string(),
+                        message: Some(format!("Failed: {} - {}", item.name, e)),
+                        progress: None,
+                    });
+                }
+            }
+        }
+        
+        // Phase 3: Delete directories (deepest first - reverse the order!)
+        // Directories were added in scan order (parent first), so we need to reverse
+        let dirs_reversed: Vec<_> = dirs_to_delete.iter().rev().collect();
+        for dir_path in dirs_reversed {
+            let dir_name = dir_path.split('/').last().unwrap_or(dir_path);
+            match ftp_manager.remove_dir(dir_path).await {
+                Ok(_) => {
+                    let _ = app.emit("transfer_event", TransferEvent {
+                        event_type: "delete_dir_complete".to_string(),
+                        transfer_id: delete_id.clone(),
+                        filename: dir_name.to_string(),
+                        direction: "remote".to_string(),
+                        message: Some(format!("Removed folder: {}", dir_name)),
+                        progress: None,
+                    });
+                }
+                Err(e) => {
+                    warn!("Failed to remove remote directory {}: {}", dir_path, e);
+                }
+            }
+        }
+        
+        // Return to original directory
+        let _ = ftp_manager.change_dir(&original_path).await;
+        
+        // Emit completion
+        let result_message = if errors > 0 {
+            format!("Deleted {} files ({} errors), {} folders", deleted_files, errors, total_dirs)
+        } else {
+            format!("Deleted {} files, {} folders", deleted_files, total_dirs)
+        };
+        
+        let _ = app.emit("transfer_event", TransferEvent {
+            event_type: "delete_complete".to_string(),
+            transfer_id: delete_id.clone(),
+            filename: file_name.clone(),
+            direction: "remote".to_string(),
+            message: Some(result_message.clone()),
+            progress: None,
+        });
+        
+        Ok(result_message)
     }
+}
 
-    Ok(())
+/// Delete a local file or folder with detailed event emission for each deleted item.
+#[tauri::command]
+async fn delete_local_file(app: AppHandle, path: String) -> Result<String, String> {
+    let path_buf = std::path::PathBuf::from(&path);
+    let file_name = path_buf.file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.clone());
+    
+    let delete_id = format!("del-local-{}", chrono::Utc::now().timestamp_millis());
+    let is_dir = path_buf.is_dir();
+    
+    if !is_dir {
+        // Single file delete
+        let _ = app.emit("transfer_event", TransferEvent {
+            event_type: "delete_start".to_string(),
+            transfer_id: delete_id.clone(),
+            filename: file_name.clone(),
+            direction: "local".to_string(),
+            message: Some(format!("Deleting local file: {}", file_name)),
+            progress: None,
+        });
+        
+        match tokio::fs::remove_file(&path).await {
+            Ok(_) => {
+                let _ = app.emit("transfer_event", TransferEvent {
+                    event_type: "delete_complete".to_string(),
+                    transfer_id: delete_id.clone(),
+                    filename: file_name.clone(),
+                    direction: "local".to_string(),
+                    message: Some(format!("Deleted local file: {}", file_name)),
+                    progress: None,
+                });
+                Ok(format!("Deleted: {}", file_name))
+            }
+            Err(e) => {
+                let _ = app.emit("transfer_event", TransferEvent {
+                    event_type: "delete_error".to_string(),
+                    transfer_id: delete_id.clone(),
+                    filename: file_name.clone(),
+                    direction: "local".to_string(),
+                    message: Some(format!("Failed to delete: {}", e)),
+                    progress: None,
+                });
+                Err(format!("Failed to delete file: {}", e))
+            }
+        }
+    } else {
+        // Folder delete - scan first, then delete with events
+        let _ = app.emit("transfer_event", TransferEvent {
+            event_type: "delete_start".to_string(),
+            transfer_id: delete_id.clone(),
+            filename: file_name.clone(),
+            direction: "local".to_string(),
+            message: Some(format!("Scanning local folder: {}", file_name)),
+            progress: None,
+        });
+        
+        // Phase 1: Collect all files and directories
+        struct DeleteItem {
+            path: std::path::PathBuf,
+            name: String,
+        }
+        
+        let mut files_to_delete: Vec<DeleteItem> = Vec::new();
+        let mut dirs_to_delete: Vec<std::path::PathBuf> = Vec::new();
+        let mut dirs_to_scan: Vec<std::path::PathBuf> = vec![path_buf.clone()];
+        
+        while let Some(current_dir) = dirs_to_scan.pop() {
+            let mut read_dir = match tokio::fs::read_dir(&current_dir).await {
+                Ok(rd) => rd,
+                Err(_) => continue,
+            };
+            
+            while let Ok(Some(entry)) = read_dir.next_entry().await {
+                let entry_path = entry.path();
+                let entry_name = entry.file_name().to_string_lossy().to_string();
+                
+                if entry_path.is_dir() {
+                    dirs_to_scan.push(entry_path.clone());
+                } else {
+                    files_to_delete.push(DeleteItem {
+                        path: entry_path,
+                        name: entry_name,
+                    });
+                }
+            }
+            
+            dirs_to_delete.push(current_dir);
+        }
+        
+        let total_files = files_to_delete.len();
+        let total_dirs = dirs_to_delete.len();
+        
+        info!("Found {} files and {} directories to delete in {}", total_files, total_dirs, file_name);
+        
+        let _ = app.emit("transfer_event", TransferEvent {
+            event_type: "progress".to_string(),
+            transfer_id: delete_id.clone(),
+            filename: file_name.clone(),
+            direction: "local".to_string(),
+            message: Some(format!("Found {} files in {} folders to delete", total_files, total_dirs)),
+            progress: None,
+        });
+        
+        // Phase 2: Delete all files with events
+        let mut deleted_files = 0u64;
+        let mut errors = 0u64;
+        let mut last_emit = std::time::Instant::now();
+        
+        for item in &files_to_delete {
+            match tokio::fs::remove_file(&item.path).await {
+                Ok(_) => {
+                    deleted_files += 1;
+                    
+                    // Emit progress every 100ms or every 50 files to avoid flooding
+                    if last_emit.elapsed().as_millis() > 100 || deleted_files % 50 == 0 || deleted_files == total_files as u64 {
+                        let _ = app.emit("transfer_event", TransferEvent {
+                            event_type: "delete_file_complete".to_string(),
+                            transfer_id: delete_id.clone(),
+                            filename: item.name.clone(),
+                            direction: "local".to_string(),
+                            message: Some(format!("Deleted [{}/{}]: {}", deleted_files, total_files, item.name)),
+                            progress: None,
+                        });
+                        last_emit = std::time::Instant::now();
+                    }
+                }
+                Err(e) => {
+                    errors += 1;
+                    let _ = app.emit("transfer_event", TransferEvent {
+                        event_type: "delete_file_error".to_string(),
+                        transfer_id: delete_id.clone(),
+                        filename: item.name.clone(),
+                        direction: "local".to_string(),
+                        message: Some(format!("Failed: {} - {}", item.name, e)),
+                        progress: None,
+                    });
+                }
+            }
+        }
+        
+        // Phase 3: Delete directories (deepest first - reverse the order!)
+        // Directories were added in scan order (parent first), so we need to reverse
+        // to delete children before parents
+        let dirs_reversed: Vec<_> = dirs_to_delete.iter().rev().collect();
+        for dir_path in dirs_reversed {
+            let dir_name = dir_path.file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "folder".to_string());
+            
+            match tokio::fs::remove_dir(dir_path).await {
+                Ok(_) => {
+                    let _ = app.emit("transfer_event", TransferEvent {
+                        event_type: "delete_dir_complete".to_string(),
+                        transfer_id: delete_id.clone(),
+                        filename: dir_name,
+                        direction: "local".to_string(),
+                        message: Some(format!("Removed folder: {}", dir_path.display())),
+                        progress: None,
+                    });
+                }
+                Err(e) => {
+                    warn!("Failed to remove directory {:?}: {}", dir_path, e);
+                }
+            }
+        }
+        
+        // Emit completion
+        let result_message = if errors > 0 {
+            format!("Deleted {} files ({} errors), {} folders", deleted_files, errors, total_dirs)
+        } else {
+            format!("Deleted {} files, {} folders", deleted_files, total_dirs)
+        };
+        
+        let _ = app.emit("transfer_event", TransferEvent {
+            event_type: "delete_complete".to_string(),
+            transfer_id: delete_id.clone(),
+            filename: file_name.clone(),
+            direction: "local".to_string(),
+            message: Some(result_message.clone()),
+            progress: None,
+        });
+        
+        Ok(result_message)
+    }
 }
 
 #[tauri::command]
@@ -911,23 +1508,6 @@ async fn chmod_remote_file(state: State<'_, AppState>, path: String, mode: Strin
     ftp_manager.chmod(&path, &mode)
         .await
         .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn delete_local_file(path: String) -> Result<(), String> {
-    let path = std::path::PathBuf::from(&path);
-    
-    if path.is_dir() {
-        tokio::fs::remove_dir_all(&path)
-            .await
-            .map_err(|e| format!("Failed to delete directory: {}", e))?;
-    } else {
-        tokio::fs::remove_file(&path)
-            .await
-            .map_err(|e| format!("Failed to delete file: {}", e))?;
-    }
-    
-    Ok(())
 }
 
 #[tauri::command]
@@ -1422,12 +2002,12 @@ async fn ai_execute_tool(
             let path = args.get("path").and_then(|v| v.as_str()).ok_or("path required")?;
             
             if location == "local" {
-                delete_local_file(path.to_string())
+                delete_local_file(app.clone(), path.to_string())
                     .await
                     .map_err(|e| e.to_string())?;
             } else {
                 // Assume file, not directory for simple delete
-                delete_remote_file(state.clone(), path.to_string(), false)
+                delete_remote_file(app.clone(), state.clone(), path.to_string(), false)
                     .await
                     .map_err(|e| e.to_string())?;
             }

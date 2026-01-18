@@ -41,7 +41,7 @@ import {
   Download, Upload, Pencil, Trash2, X, ArrowUp, ArrowDown,
   Folder, FileText, Globe, HardDrive, Settings, Search, Eye, Link2, Unlink, PanelTop, Shield, Cloud,
   Archive, Image, Video, FileCode, Music, File, FileSpreadsheet, FileType, Code, Database, Clock,
-  Copy, Clipboard, ExternalLink, List, LayoutGrid, ChevronRight, Plus, CheckCircle2
+  Copy, Clipboard, ExternalLink, List, LayoutGrid, ChevronRight, Plus, CheckCircle2, AlertTriangle
 } from 'lucide-react';
 
 // Extracted utilities and components (Phase 1 modularization)
@@ -119,6 +119,9 @@ const App: React.FC = () => {
 
   // Transfer Queue (unified upload + download)
   const transferQueue = useTransferQueue();
+  
+  // Mapping from backend transfer_id to queue item id (for folder progress updates)
+  const transferIdToQueueId = React.useRef<Map<string, string>>(new Map());
 
   // Track if any transfer is active (for Logo animation)
   const hasQueueActivity = transferQueue.hasActiveTransfers;
@@ -180,6 +183,41 @@ const App: React.FC = () => {
       </span>
     );
   };
+
+  // Check if local path is coherent with the connected remote server
+  // Returns true if they match (or we can't determine), false if mismatch
+  const isLocalPathCoherent = React.useMemo(() => {
+    if (!isConnected || !connectionParams.server || !currentLocalPath) return true;
+    
+    // Extract server name without 'ftp.' prefix and port
+    // e.g., "ftp.ericsolar.it:21" -> "ericsolar"
+    const serverHost = connectionParams.server.split(':')[0]; // Remove port
+    const serverName = serverHost.replace(/^ftp\./, '').replace(/^www\./, ''); // Remove ftp./www.
+    const serverBase = serverName.split('.')[0]; // Get first part (e.g., "ericsolar" from "ericsolar.it")
+    
+    // Check if local path contains a reference to a different server
+    // Common patterns: /var/www/html/www.ericsolar.it, /home/user/ericsolar, etc.
+    const localPathLower = currentLocalPath.toLowerCase();
+    const serverBaseLower = serverBase.toLowerCase();
+    
+    // If local path contains the server name, it's coherent
+    if (localPathLower.includes(serverBaseLower)) return true;
+    
+    // Check if local path contains ANY known server pattern that doesn't match
+    // Look for patterns like "www.something.it" or "something.it" in path
+    const pathParts = currentLocalPath.split('/');
+    for (const part of pathParts) {
+      // Check for domain-like patterns (e.g., www.example.it, example.com)
+      if (/^(www\.)?[a-z0-9-]+\.(it|com|org|net|io|dev|local)$/i.test(part)) {
+        const pathDomain = part.replace(/^www\./, '').split('.')[0].toLowerCase();
+        // If we found a domain in the path and it doesn't match our server, it's incoherent
+        if (pathDomain !== serverBaseLower) return false;
+      }
+    }
+    
+    // Default: assume coherent if we can't determine otherwise
+    return true;
+  }, [isConnected, connectionParams.server, currentLocalPath]);
 
   // Load image preview as base64 when file changes
   useEffect(() => {
@@ -386,31 +424,123 @@ const App: React.FC = () => {
     if (localSortField === field) setLocalSortOrder(localSortOrder === 'asc' ? 'desc' : 'asc');
     else { setLocalSortField(field); setLocalSortOrder('asc'); }
   };
+  
+  // Timeout to auto-hide transfer popup if stuck (30 seconds of no updates)
+  const lastProgressUpdate = React.useRef<number>(Date.now());
+  useEffect(() => {
+    if (!activeTransfer) return;
+    
+    lastProgressUpdate.current = Date.now();
+    
+    const checkStuck = setInterval(() => {
+      if (Date.now() - lastProgressUpdate.current > 30000) {
+        console.warn('Transfer popup stuck, auto-closing');
+        setActiveTransfer(null);
+      }
+    }, 5000);
+    
+    return () => clearInterval(checkStuck);
+  }, [activeTransfer?.percentage]);
 
-  // Transfer events (backend progress updates)
+  // Transfer events (backend progress updates) - handles downloads, uploads, and deletes
   useEffect(() => {
     const unlisten = listen<TransferEvent>('transfer_event', (event) => {
       const data = event.payload;
-      // Queue handles visual feedback - only track progress here
+      const locationLabel = data.direction === 'local' ? '🖥️' : data.direction === 'remote' ? '🌐' : 
+                           data.direction === 'download' ? '⬇️' : '⬆️';
+      
+      // ========== TRANSFER EVENTS (download/upload) ==========
       if (data.event_type === 'start') {
-        // No toast - queue shows start
+        // Folder scan started - find and update queue item
+        activityLog.log(data.direction === 'download' ? 'DOWNLOAD' : 'UPLOAD', 
+          `${locationLabel} ${data.message || data.filename}`, 'running');
+        
+        // Try to match with queue item by filename and mark as folder
+        const queueItem = transferQueue.items.find(i => i.filename === data.filename && i.status === 'pending');
+        if (queueItem) {
+          transferIdToQueueId.current.set(data.transfer_id, queueItem.id);
+          transferQueue.markAsFolder(queueItem.id);
+          transferQueue.startTransfer(queueItem.id);
+        }
+      } else if (data.event_type === 'file_start') {
+        // Individual file transfer starting
+        activityLog.log(data.direction === 'download' ? 'DOWNLOAD' : 'UPLOAD',
+          `${locationLabel} ${data.filename}`, 'running', data.message);
+      } else if (data.event_type === 'file_complete') {
+        // Individual file transfer complete
+        activityLog.log(data.direction === 'download' ? 'DOWNLOAD' : 'UPLOAD',
+          `${locationLabel} ✓ ${data.filename}`, 'success', data.message);
+      } else if (data.event_type === 'file_error') {
+        // Individual file transfer error
+        activityLog.log('ERROR', `${locationLabel} ✗ ${data.filename}`, 'error', data.message);
       } else if (data.event_type === 'progress' && data.progress) {
         setActiveTransfer(data.progress);
+        
+        // Update folder queue item with file count progress (only for folder transfers)
+        // Folder transfers have transfer_id like "dl-folder-..." or "ul-folder-..."
+        if (data.transfer_id.includes('folder')) {
+          const queueId = transferIdToQueueId.current.get(data.transfer_id);
+          if (queueId) {
+            transferQueue.updateFolderProgress(queueId, data.progress.total, data.progress.transferred);
+          }
+        }
       } else if (data.event_type === 'complete') {
         setActiveTransfer(null);
-        // No toast - queue shows completion
+        activityLog.log('SUCCESS', `${locationLabel} ${data.message || data.filename}`, 'success');
+        
+        // Complete the queue item
+        const queueId = transferIdToQueueId.current.get(data.transfer_id);
+        if (queueId) {
+          transferQueue.completeTransfer(queueId);
+          transferIdToQueueId.current.delete(data.transfer_id);
+        }
+        
         if (data.direction === 'upload') loadRemoteFiles();
-        else loadLocalFiles(currentLocalPath);
+        else if (data.direction === 'download') loadLocalFiles(currentLocalPath);
       } else if (data.event_type === 'error') {
         setActiveTransfer(null);
+        activityLog.log('ERROR', `${data.message}`, 'error');
+        
+        // Fail the queue item
+        const queueId = transferIdToQueueId.current.get(data.transfer_id);
+        if (queueId) {
+          transferQueue.failTransfer(queueId, data.message || 'Transfer failed');
+          transferIdToQueueId.current.delete(data.transfer_id);
+        }
+        
         toast.error('Transfer Failed', data.message);
       } else if (data.event_type === 'cancelled') {
         setActiveTransfer(null);
         toast.warning('Transfer Cancelled', data.message);
       }
+      
+      // ========== DELETE EVENTS ==========
+      else if (data.event_type === 'delete_start') {
+        // Folder delete scan started
+        activityLog.log('DELETE', `${locationLabel} ${data.message || data.filename}`, 'running');
+      } else if (data.event_type === 'delete_file_start') {
+        // Individual file delete starting
+        activityLog.log('DELETE', `${locationLabel} ${data.filename}`, 'running', data.message);
+      } else if (data.event_type === 'delete_file_complete') {
+        // Individual file deleted
+        activityLog.log('DELETE', `${locationLabel} ✓ ${data.filename}`, 'success');
+      } else if (data.event_type === 'delete_file_error') {
+        // Individual file delete error
+        activityLog.log('ERROR', `${locationLabel} ✗ ${data.filename}`, 'error', data.message);
+      } else if (data.event_type === 'delete_dir_complete') {
+        // Directory removed
+        activityLog.log('DELETE', `${locationLabel} 📁 ${data.filename}`, 'success');
+      } else if (data.event_type === 'delete_complete') {
+        // Folder delete complete
+        activityLog.log('SUCCESS', `${locationLabel} ${data.message || data.filename}`, 'success');
+        if (data.direction === 'remote') loadRemoteFiles();
+        else if (data.direction === 'local') loadLocalFiles(currentLocalPath);
+      } else if (data.event_type === 'delete_error') {
+        activityLog.log('ERROR', `${locationLabel} ${data.message}`, 'error');
+      }
     });
     return () => { unlisten.then(fn => fn()); };
-  }, [currentLocalPath]);
+  }, [currentLocalPath, activityLog, transferQueue]);
 
   // Menu events from native menu
   useEffect(() => {
@@ -616,6 +746,9 @@ const App: React.FC = () => {
   const connectToFtp = async () => {
     if (!connectionParams.server || !connectionParams.username) { toast.error('Missing Fields', 'Please fill in server and username'); return; }
     setLoading(true);
+    // Reset navigation sync for new connection
+    setIsSyncNavigation(false);
+    setSyncBasePaths(null);
     const logId = humanLog.logStart('CONNECT', { server: connectionParams.server });
     try {
       await invoke('connect_ftp', { params: connectionParams });
@@ -673,28 +806,44 @@ const App: React.FC = () => {
       localFiles: [...localFiles],
       lastActivity: new Date(),
       connectionParams: params,
+      // New sessions start with navigation sync disabled
+      isSyncNavigation: false,
+      syncBasePaths: null,
     };
+    // Reset global sync state for new session
+    setIsSyncNavigation(false);
+    setSyncBasePaths(null);
     setSessions(prev => [...prev, newSession]);
     setActiveSessionId(newSession.id);
   };
 
   const switchSession = async (sessionId: string) => {
-    const session = sessions.find(s => s.id === sessionId);
-    if (!session) return;
+    // Find the target session from current sessions state
+    const targetSession = sessions.find(s => s.id === sessionId);
+    if (!targetSession) return;
 
     // Don't switch if already on this session
     if (activeSessionId === sessionId) return;
 
-    // Save current session state before switching
-    // Use functional update to capture current state correctly
+    // Capture current state values before any async operations
+    const capturedRemoteFiles = [...remoteFiles];
+    const capturedLocalFiles = [...localFiles];
+    const capturedRemotePath = currentRemotePath;
+    const capturedLocalPath = currentLocalPath;
+    const capturedSyncNav = isSyncNavigation;
+    const capturedSyncPaths = syncBasePaths;
+
+    // Save current session state before switching (including sync navigation state)
     setSessions(prev => prev.map(s =>
       s.id === activeSessionId
         ? { 
             ...s, 
-            remoteFiles: [...remoteFiles], 
-            localFiles: [...localFiles], 
-            remotePath: currentRemotePath, 
-            localPath: currentLocalPath 
+            remoteFiles: capturedRemoteFiles, 
+            localFiles: capturedLocalFiles, 
+            remotePath: capturedRemotePath, 
+            localPath: capturedLocalPath,
+            isSyncNavigation: capturedSyncNav,
+            syncBasePaths: capturedSyncPaths
           }
         : s
     ));
@@ -703,18 +852,24 @@ const App: React.FC = () => {
     setActiveSessionId(sessionId);
 
     // Load cached data immediately (zero latency UX)
-    setRemoteFiles(session.remoteFiles);
-    setLocalFiles(session.localFiles);
-    setCurrentRemotePath(session.remotePath);
-    setCurrentLocalPath(session.localPath);
-    setConnectionParams(session.connectionParams);
+    setRemoteFiles(targetSession.remoteFiles);
+    setLocalFiles(targetSession.localFiles);
+    setCurrentRemotePath(targetSession.remotePath);
+    setCurrentLocalPath(targetSession.localPath);
+    setConnectionParams(targetSession.connectionParams);
+    
+    // Restore per-session navigation sync state
+    setIsSyncNavigation(targetSession.isSyncNavigation ?? false);
+    setSyncBasePaths(targetSession.syncBasePaths ?? null);
 
     // Reconnect to the new server and refresh data
     setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, status: 'connecting' } : s));
+    humanLog.log('CONNECT', `🔄 Reconnecting to ${targetSession.serverName}...`, 'running');
     try {
-      await invoke('connect_ftp', { params: session.connectionParams });
-      await invoke('change_directory', { path: session.remotePath });
+      await invoke('connect_ftp', { params: targetSession.connectionParams });
+      await invoke('change_directory', { path: targetSession.remotePath });
       setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, status: 'connected' } : s));
+      humanLog.log('CONNECT', `✅ Reconnected to ${targetSession.serverName}`, 'success');
       
       // Refresh BOTH remote and local files with real data
       const response: FileListResponse = await invoke('list_files');
@@ -723,15 +878,18 @@ const App: React.FC = () => {
       
       // Also refresh local files for this session's local path
       const localFilesData: LocalFile[] = await invoke('get_local_files', { 
-        path: session.localPath, 
+        path: targetSession.localPath, 
         showHidden: showHiddenFiles 
       });
       setLocalFiles(localFilesData);
-      setCurrentLocalPath(session.localPath);
+      setCurrentLocalPath(targetSession.localPath);
       
     } catch (e) {
       console.log('Reconnect error:', e);
+      humanLog.log('ERROR', `❌ Failed to reconnect to ${targetSession.serverName}: ${e}`, 'error');
       setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, status: 'cached' } : s));
+      // Even on error, ensure local path is set correctly from session cache
+      setCurrentLocalPath(targetSession.localPath);
     }
   };
 
@@ -756,14 +914,25 @@ const App: React.FC = () => {
   };
 
   const handleNewTabFromSavedServer = () => {
-    // Mark current session as cached and go to connection screen
+    // Capture current state before any changes
+    const capturedRemoteFiles = [...remoteFiles];
+    const capturedLocalFiles = [...localFiles];
+    const capturedRemotePath = currentRemotePath;
+    const capturedLocalPath = currentLocalPath;
+    const capturedSyncNav = isSyncNavigation;
+    const capturedSyncPaths = syncBasePaths;
+    
+    // Mark current session as cached and go to connection screen (including sync state)
     if (activeSessionId) {
       setSessions(prev => prev.map(s =>
         s.id === activeSessionId
-          ? { ...s, status: 'cached', remoteFiles: [...remoteFiles], localFiles: [...localFiles], remotePath: currentRemotePath, localPath: currentLocalPath }
+          ? { ...s, status: 'cached', remoteFiles: capturedRemoteFiles, localFiles: capturedLocalFiles, remotePath: capturedRemotePath, localPath: capturedLocalPath, isSyncNavigation: capturedSyncNav, syncBasePaths: capturedSyncPaths }
           : s
       ));
     }
+    // Reset sync state for new connection
+    setIsSyncNavigation(false);
+    setSyncBasePaths(null);
     setIsConnected(false);
   };
 
@@ -1060,7 +1229,10 @@ const App: React.FC = () => {
     }
   };
 
-  const cancelTransfer = async () => { try { await invoke('cancel_transfer'); } catch { } };
+  const cancelTransfer = async () => { 
+    setActiveTransfer(null); // Close popup immediately
+    try { await invoke('cancel_transfer'); } catch { } 
+  };
 
   // Open DevTools with file preview
   const openDevToolsPreview = async (file: RemoteFile | LocalFile, isRemote: boolean) => {
@@ -1670,6 +1842,9 @@ const App: React.FC = () => {
             onSavedServerConnect={async (params, initialPath, localInitialPath) => {
               setConnectionParams(params);
               setLoading(true);
+              // Reset navigation sync for new connection
+              setIsSyncNavigation(false);
+              setSyncBasePaths(null);
               const logId = humanLog.logStart('CONNECT', { server: params.server });
               try {
                 await invoke('connect_ftp', { params });
@@ -1972,14 +2147,20 @@ const App: React.FC = () => {
               {/* Local */}
               <div className={`${showLocalPreview ? 'w-1/3' : 'w-1/2'} flex flex-col transition-all duration-300`}>
                 <div className="px-3 py-2 bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 text-sm font-medium flex items-center gap-2">
-                  <HardDrive size={14} className={isSyncNavigation ? 'text-purple-500' : 'text-blue-500'} />
+                  {isLocalPathCoherent ? (
+                    <HardDrive size={14} className={isSyncNavigation ? 'text-purple-500' : 'text-blue-500'} />
+                  ) : (
+                    <span title="Local path doesn't match the connected server">
+                      <AlertTriangle size={14} className="text-amber-500" />
+                    </span>
+                  )}
                   <input
                     type="text"
                     value={currentLocalPath}
                     onChange={(e) => setCurrentLocalPath(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && changeLocalDirectory((e.target as HTMLInputElement).value)}
-                    className="flex-1 bg-transparent border-none outline-none text-sm cursor-text select-all"
-                    title="Click to edit path, Enter to navigate"
+                    className={`flex-1 bg-transparent border-none outline-none text-sm cursor-text select-all ${!isLocalPathCoherent ? 'text-amber-500' : ''}`}
+                    title={isLocalPathCoherent ? "Click to edit path, Enter to navigate" : "⚠️ Local path doesn't match the connected server"}
                   />
                 </div>
                 <div className="flex-1 overflow-auto">
