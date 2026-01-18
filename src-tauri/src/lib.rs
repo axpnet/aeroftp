@@ -764,6 +764,14 @@ async fn cancel_transfer(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
+// ============ Environment Detection ============
+
+/// Check if the application is running as a Snap package
+#[tauri::command]
+fn is_running_as_snap() -> bool {
+    std::env::var("SNAP").is_ok()
+}
+
 // ============ Local File System Commands ============
 
 #[tauri::command]
@@ -2131,6 +2139,7 @@ pub fn run() {
             download_folder,
             upload_folder,
             cancel_transfer,
+            is_running_as_snap,
             get_local_files,
             open_in_file_manager,
             delete_remote_file,
