@@ -71,6 +71,18 @@
   </languages>
   
   <releases>
+    <release version="1.0.0" date="2026-01-20">
+      <description>
+        <p>🎉 First stable release!</p>
+        <ul>
+          <li>Cleaner logo without shadow effects</li>
+          <li>Fixed DevTools terminal keyboard input</li>
+          <li>Improved terminal styling with GitHub Dark theme</li>
+          <li>Colored shell prompt (green user@host, blue path)</li>
+          <li>Updated plugin versions for compatibility</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.9.9" date="2026-01-19">
       <description>
         <p>Per-session improvements:</p>
