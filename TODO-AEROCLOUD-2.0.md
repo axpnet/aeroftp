@@ -25,6 +25,12 @@
   - `node-sources.json` → rigenerato (622 sources)
 - ⏳ In attesa review Flathub
 
+### Post-1.2.0 Fixes (Unreleased - v1.2.1)
+- ✅ SavedServers: Disabled unavailable protocols (WebDAV, S3, Dropbox, OneDrive)
+- ✅ SavedServers: Removed AeroCloud (has dedicated panel)
+- ✅ Tab names: Now use custom displayName
+- ✅ README: Updated for v1.2.0 multi-provider
+
 ---
 
 ## 🎯 Vision

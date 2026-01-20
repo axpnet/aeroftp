@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - v1.2.1
+
+### Fixed
+- **SavedServers Protocol Dropdown**: Disabled unavailable protocols (WebDAV, S3, Dropbox, OneDrive) with "(Soon)" label
+- **AeroCloud in SavedServers**: Removed AeroCloud from SavedServers dropdown - it has dedicated panel via Quick Connect
+- **Tab Display Names**: Sessions now use custom `displayName` instead of raw FTP host
+- **OAuth Tab Names**: OAuth providers show custom name or provider name in tab
+
+### Changed
+- **ConnectionParams**: Added `displayName` field for custom session naming
+
+---
+
 ## [1.2.0] - 2026-01-20
 
 ### ☁️ Google Drive Integration (OAuth2)

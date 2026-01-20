@@ -1943,10 +1943,8 @@ const App: React.FC = () => {
               
               // Check if this is an OAuth provider
               const isOAuth = params.protocol && ['googledrive', 'dropbox', 'onedrive'].includes(params.protocol);
-              // Check if this is an AeroCloud provider
-              const isAeroCloud = params.protocol === 'aerocloud';
               console.log('[onSavedServerConnect] params:', params);
-              console.log('[onSavedServerConnect] isOAuth:', isOAuth, 'isAeroCloud:', isAeroCloud);
+              console.log('[onSavedServerConnect] isOAuth:', isOAuth);
               
               if (isOAuth) {
                 // OAuth provider is already connected via SavedServers component
@@ -1968,14 +1966,6 @@ const App: React.FC = () => {
                   initialPath || '/',
                   localInitialPath || currentLocalPath
                 );
-                return;
-              }
-              
-              // AeroCloud: Open the Cloud panel instead of treating as FTP
-              if (isAeroCloud) {
-                // Pre-fill cloud config with saved server params
-                setShowCloudPanel(true);
-                notify.info('AeroCloud', 'Configure your AeroCloud sync settings');
                 return;
               }
               

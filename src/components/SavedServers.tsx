@@ -347,7 +347,7 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
                             <option value="s3" disabled>S3 (Soon)</option>
                         </optgroup>
                         <optgroup label="Cloud Providers">
-                            <option value="aerocloud">☁️ AeroCloud (Sync)</option>
+                            {/* AeroCloud removed - has dedicated panel via Quick Connect */}
                             <option value="googledrive">Google Drive</option>
                             <option value="dropbox" disabled>Dropbox (Soon)</option>
                             <option value="onedrive" disabled>OneDrive (Soon)</option>
