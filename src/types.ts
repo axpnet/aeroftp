@@ -45,6 +45,7 @@ export interface ConnectionParams {
   protocol?: ProviderType;  // Default: 'ftp'
   port?: number;            // Default based on protocol
   options?: ProviderOptions;
+  displayName?: string;     // Custom name for tab display
 }
 
 export interface DownloadParams {

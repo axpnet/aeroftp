@@ -1,8 +1,29 @@
 # AeroCloud 2.0 - Multi-Provider Cloud Storage Roadmap
 
 > Created: 20 January 2026
-> Version: AeroFTP 1.0.0 → 1.1.0
-> Status: Sprint 1 In Progress
+> Version: AeroFTP 1.0.0 → 1.2.0
+> Status: Sprint 2 Complete (v1.2.0 Released)
+
+---
+
+## 📦 Release Log
+
+### v1.2.0 (20 January 2026)
+**Commit:** `ed0d57f5e924a44e2c9286810344c7b79ce0a9c7`
+
+**Features:**
+- Google Drive OAuth2 integration (browse, download, upload, delete)
+- Provider-specific tab icons
+- OAuth credentials loading from Settings panel
+- Session switching workaround for OAuth providers
+
+**Packaging Updates:**
+- ✅ Snap: Pushed to edge channel
+- ✅ Flatpak PR: https://github.com/flathub/flathub/pull/7608
+  - `com.aeroftp.AeroFTP.yml` → tag v1.2.0
+  - `cargo-sources.json` → rigenerato (8184 righe)
+  - `node-sources.json` → rigenerato (622 sources)
+- ⏳ In attesa review Flathub
 
 ---
 

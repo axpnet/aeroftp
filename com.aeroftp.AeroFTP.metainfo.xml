@@ -71,6 +71,18 @@
   </languages>
   
   <releases>
+    <release version="1.2.0" date="2026-01-20">
+      <description>
+        <p>☁️ Google Drive &amp; OAuth Providers (Sprint 2)</p>
+        <ul>
+          <li>Google Drive Integration (OAuth2)</li>
+          <li>New OAuth Settings panel with secure token storage</li>
+          <li>Provider icons in session tabs</li>
+          <li>Fixed critical session switching bugs (FTP ↔ OAuth)</li>
+          <li>Improved OAuth callback handling with local server</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-01-20">
       <description>
         <p>🌐 Multi-Protocol Cloud Storage (Sprint 1)</p>

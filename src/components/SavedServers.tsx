@@ -217,6 +217,7 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
             username: server.username,
             password: server.password || '',
             protocol: server.protocol || 'ftp',
+            displayName: server.name,  // Pass custom name for tab display
         }, server.initialPath, server.localInitialPath);
     };
 
@@ -342,14 +343,14 @@ export const SavedServers: React.FC<SavedServersProps> = ({ onConnect, className
                         <optgroup label="Traditional">
                             <option value="ftp">FTP</option>
                             <option value="ftps">FTPS (Secure)</option>
-                            <option value="webdav">WebDAV</option>
-                            <option value="s3">S3</option>
+                            <option value="webdav" disabled>WebDAV (Soon)</option>
+                            <option value="s3" disabled>S3 (Soon)</option>
                         </optgroup>
                         <optgroup label="Cloud Providers">
                             <option value="aerocloud">☁️ AeroCloud (Sync)</option>
                             <option value="googledrive">Google Drive</option>
-                            <option value="dropbox">Dropbox</option>
-                            <option value="onedrive">OneDrive</option>
+                            <option value="dropbox" disabled>Dropbox (Soon)</option>
+                            <option value="onedrive" disabled>OneDrive (Soon)</option>
                         </optgroup>
                     </select>
                     
