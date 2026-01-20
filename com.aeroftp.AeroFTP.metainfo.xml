@@ -38,15 +38,15 @@
   <screenshots>
     <screenshot type="default">
       <caption>AeroFTP main window showing dual-pane file browser</caption>
-      <image>https://raw.githubusercontent.com/axpnet/aeroftp/v0.9.7/docs/screenshots/screenshot-1.png</image>
+      <image>https://raw.githubusercontent.com/axpnet/aeroftp/v0.9.9/docs/screenshots/screenshot-1.png</image>
     </screenshot>
     <screenshot>
       <caption>Connection screen with saved servers</caption>
-      <image>https://raw.githubusercontent.com/axpnet/aeroftp/v0.9.7/docs/screenshots/screenshot-2.png</image>
+      <image>https://raw.githubusercontent.com/axpnet/aeroftp/v0.9.9/docs/screenshots/screenshot-2.png</image>
     </screenshot>
     <screenshot>
       <caption>Integrated DevTools with code editor</caption>
-      <image>https://raw.githubusercontent.com/axpnet/aeroftp/v0.9.7/docs/screenshots/screenshot-3.png</image>
+      <image>https://raw.githubusercontent.com/axpnet/aeroftp/v0.9.9/docs/screenshots/screenshot-3.png</image>
     </screenshot>
   </screenshots>
   
@@ -71,6 +71,18 @@
   </languages>
   
   <releases>
+    <release version="0.9.9" date="2026-01-19">
+      <description>
+        <p>Per-session improvements:</p>
+        <ul>
+          <li>Per-session navigation sync - each tab maintains independent sync state</li>
+          <li>Path coherence check - warning when local/remote paths don't match</li>
+          <li>AeroCloud log filter - toggle to hide/show cloud sync messages</li>
+          <li>Tab switch logging - reconnection status in Activity Log</li>
+          <li>Fixed local path not restoring on tab switch</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.9.7" date="2026-01-17">
       <description>
         <p>Activity Log Panel release with major improvements:</p>
