@@ -43,7 +43,7 @@ base64 = "0.22"
 portable-pty = "0.8"
 reqwest = { version = "0.13", features = ["json", "stream", "multipart"] }
 notify = { version = "8", default-features = true }                          # Filesystem watcher (v8 required by debouncer-full 0.6)
-notify-debouncer-full = "0.6"                                               # Debouncer with rename tracking, event dedup, quiet-period batching
+notify-debouncer-full = "0.7"                                               # Debouncer with rename tracking, event dedup, quiet-period batching
 tauri-plugin-single-instance = "2.3.6"
 tauri-plugin-localhost = "2"                                               # Serve frontend via real HTTP to fix WebKitGTK rendering
 tauri-plugin-autostart = "2"                                               # Launch on system startup
