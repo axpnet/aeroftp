@@ -27,7 +27,7 @@
     "@tauri-apps/plugin-shell": "^2.3.4",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-web-links": "^0.11.0",
-    "@xterm/xterm": "^5.5.0",
+    "@xterm/xterm": "^6.0.0",
     "country-flag-icons": "^1.6.12",
     "lucide-react": "^0.378.0",
     "monaco-editor": "^0.55.1",
