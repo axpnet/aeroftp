@@ -121,7 +121,7 @@ similar = "2"                                                          # Unified
 totp-rs = { version = "5", features = ["qr"] }                        # RFC 6238 TOTP with otpauth URI
 
 # Chat History SQLite (v2.3.0)
-rusqlite = { version = "0.32", features = ["bundled"] }                # SQLite with FTS5 (bundled = no system libsqlite3)
+rusqlite = { version = "0.38", features = ["bundled"] }                # SQLite with FTS5 (bundled = no system libsqlite3)
 
 # CLI Foundation (v2.3.0)
 clap = { version = "4", features = ["derive"] }                        # CLI argument parser
