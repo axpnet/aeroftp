@@ -52,7 +52,7 @@ dependencies = [
  "clap_complete",
  "crossterm",
  "crypto_secretbox",
- "ctr 0.9.2",
+ "ctr 0.10.0",
  "ctrlc",
  "data-encoding",
  "dirs 5.0.1",
