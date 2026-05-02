@@ -364,6 +364,10 @@ const App: React.FC = () => {
   const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [currentRemotePath, setCurrentRemotePath] = useState('/');
   const [currentLocalPath, setCurrentLocalPath] = useState('');
+  // AeroFile back/forward history for X1/X2 mouse navigation. Reporter
+  // @EhudKirsh, wishlist #133/#134.
+  const localPathHistoryRef = useRef<{ stack: string[]; cursor: number }>({ stack: [], cursor: -1 });
+  const localHistoryNavigatingRef = useRef(false);
   const [connectionParams, setConnectionParams] = useState<ConnectionParams>({ server: '', username: '', password: '' });
   const [quickConnectDirs, setQuickConnectDirs] = useState({ remoteDir: '', localDir: '' });
   const [loading, setLoading] = useState(false);
@@ -4011,6 +4015,23 @@ interface UpdateVerificationInfo {
     if (!success) return; // Don't record failed navigations
     humanLog.logNavigate(path, false);
     addRecentPath(path);
+    // Track navigation history for X1/X2 mouse buttons. Skip when the
+    // navigation itself came from goBack/goForward, otherwise we'd grow
+    // the stack on every back-step.
+    if (!localHistoryNavigatingRef.current) {
+      const hist = localPathHistoryRef.current;
+      const top = hist.stack[hist.cursor];
+      if (top !== path) {
+        // Truncate any forward entries past the cursor — once user
+        // diverges we drop the redo branch, like a browser.
+        const truncated = hist.stack.slice(0, hist.cursor + 1);
+        truncated.push(path);
+        // Cap at 64 entries to keep memory bounded for long sessions.
+        const overflow = Math.max(0, truncated.length - 64);
+        const stack = overflow > 0 ? truncated.slice(overflow) : truncated;
+        localPathHistoryRef.current = { stack, cursor: stack.length - 1 };
+      }
+    }
     // Exit trash view when navigating to a regular path
     if (isTrashView) setIsTrashView(false);
 
@@ -4055,6 +4076,42 @@ interface UpdateVerificationInfo {
       }
     }
   };
+
+  // X1/X2 mouse navigation: walk the AeroFile path history. Use a ref
+  // for changeLocalDirectory because it isn't memoized — without the
+  // ref, the listener would close over the stale first-render version
+  // and call setState on stale data.
+  const changeLocalDirectoryRef = useRef(changeLocalDirectory);
+  useEffect(() => { changeLocalDirectoryRef.current = changeLocalDirectory; });
+
+  useEffect(() => {
+    const onBack = () => {
+      const hist = localPathHistoryRef.current;
+      if (hist.cursor <= 0) return;
+      const target = hist.stack[hist.cursor - 1];
+      localPathHistoryRef.current = { stack: hist.stack, cursor: hist.cursor - 1 };
+      localHistoryNavigatingRef.current = true;
+      Promise.resolve(changeLocalDirectoryRef.current(target)).finally(() => {
+        localHistoryNavigatingRef.current = false;
+      });
+    };
+    const onForward = () => {
+      const hist = localPathHistoryRef.current;
+      if (hist.cursor >= hist.stack.length - 1) return;
+      const target = hist.stack[hist.cursor + 1];
+      localPathHistoryRef.current = { stack: hist.stack, cursor: hist.cursor + 1 };
+      localHistoryNavigatingRef.current = true;
+      Promise.resolve(changeLocalDirectoryRef.current(target)).finally(() => {
+        localHistoryNavigatingRef.current = false;
+      });
+    };
+    window.addEventListener('aerofile-navigate-back', onBack);
+    window.addEventListener('aerofile-navigate-forward', onForward);
+    return () => {
+      window.removeEventListener('aerofile-navigate-back', onBack);
+      window.removeEventListener('aerofile-navigate-forward', onForward);
+    };
+  }, []);
 
   // Safe local path navigation with fallback for invalid paths
   // (e.g. imported backup from another PC with different directory structure)

@@ -4,34 +4,43 @@
 import { useEffect } from 'react';
 
 /**
- * Translate the mouse Back button (button code 3, common on gaming /
- * productivity mice) into a synthetic Escape keydown event so any
- * already-Esc-aware modal, dialog, dropdown or popover closes on the
- * Back click without each component having to opt in individually.
+ * Wire the mouse Back / Forward side buttons (X1 = button 3, X2 = button 4)
+ * to two distinct outcomes depending on whether a modal is currently open:
  *
- * Why a synthetic Escape: every modal in this codebase already wires Esc
- * (TwoFactorPromptDialog, HostKeyDialog, OverwriteDialog, SettingsPanel,
- * VaultPanel, AISettingsPanel, ConnectionScreen, etc.). Re-routing Back
- * through the same channel means we get correct stacked-modal behavior
- * (topmost closes first, since each handler typically self-removes) for
- * free, with zero per-component churn.
+ *   - Modal open  → synthesize an Escape keydown so the topmost dialog
+ *                   closes via its existing handler (unchanged behavior;
+ *                   stacked-modal correctness is preserved because each
+ *                   dialog typically self-removes its listener on close).
+ *   - No modal    → dispatch a window-level custom event that the
+ *                   AeroFile local panel listens for to walk its own path
+ *                   history (mimicking the Back/Forward buttons in the
+ *                   OS file manager). If no listener consumes the event
+ *                   (user is in DevTools / AeroAgent / etc.) the event
+ *                   is silently ignored, which is the desired no-op.
+ *
+ * Detecting "a modal is open":
+ *   - The `modal-open` class on <html> set by 5 dialogs in this codebase.
+ *   - Any `[role="dialog"]` or `[aria-modal="true"]` element mounted in
+ *     the DOM (54 files use this pattern; dialogs unmount on close).
  *
  * Reference: HTML mouse buttons spec
- *   - event.button === 3 → 4th physical button = "Back" / "X1"
+ *   - event.button === 3 → 4th physical button = "Back"  / "X1"
  *   - event.button === 4 → 5th physical button = "Forward" / "X2"
- * Most browsers fire `mouseup`/`mousedown` on these (no `auxclick` on
- * non-link targets in WebKit), so we listen to `mouseup` to match the
- * gesture timing the user expects when releasing the side button.
  *
  * preventDefault on `mousedown` AND `mouseup` is required to suppress
- * the native browser back-history navigation that otherwise fires.
- * Tauri webviews historically ignored history navigation, but recent
- * WebKitGTK builds began honoring it, so we silence both events.
+ * the native browser back-history navigation that recent WebKitGTK
+ * builds began honoring.
  *
- * Reported by @EhudKirsh.
+ * Reported by @EhudKirsh (#133, #134).
  */
 export function useMouseBackButton(): void {
     useEffect(() => {
+        const isAnyModalOpen = (): boolean => {
+            if (document.documentElement.classList.contains('modal-open')) return true;
+            if (document.querySelector('[role="dialog"], [aria-modal="true"]')) return true;
+            return false;
+        };
+
         const swallow = (e: MouseEvent) => {
             if (e.button === 3 || e.button === 4) {
                 e.preventDefault();
@@ -39,24 +48,29 @@ export function useMouseBackButton(): void {
             }
         };
         const onUp = (e: MouseEvent) => {
-            if (e.button !== 3) return;
+            if (e.button !== 3 && e.button !== 4) return;
             e.preventDefault();
             e.stopPropagation();
-            // Synthesize an Escape keydown so any open modal / dropdown
-            // closes via its existing handler. We dispatch on
-            // document.activeElement when present so contenteditable /
-            // input handlers also see it; otherwise on window.
-            const target: EventTarget = document.activeElement ?? window;
-            target.dispatchEvent(
-                new KeyboardEvent('keydown', {
-                    key: 'Escape',
-                    code: 'Escape',
-                    keyCode: 27,
-                    which: 27,
-                    bubbles: true,
-                    cancelable: true,
-                }),
-            );
+            if (isAnyModalOpen()) {
+                // Modal path: synthesize Escape on the focused element so
+                // contenteditable / input handlers also see it.
+                const target: EventTarget = document.activeElement ?? window;
+                target.dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        key: 'Escape',
+                        code: 'Escape',
+                        keyCode: 27,
+                        which: 27,
+                        bubbles: true,
+                        cancelable: true,
+                    }),
+                );
+                return;
+            }
+            // No-modal path: navigate AeroFile history. Unhandled by
+            // listeners outside AeroFile context.
+            const eventName = e.button === 3 ? 'aerofile-navigate-back' : 'aerofile-navigate-forward';
+            window.dispatchEvent(new CustomEvent(eventName));
         };
         // Capture phase so we win against any inner element that swallows
         // mouseup before bubbling.
