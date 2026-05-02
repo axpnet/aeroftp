@@ -38,6 +38,8 @@ interface LargeIconsGridProps {
   dragOverTarget: string | null;
   // Inline rename
   inlineRename: { path: string; name: string; isRemote: boolean } | null;
+  inlineRenameValue: string;
+  inlineRenameRef?: React.RefObject<HTMLInputElement>;
   onInlineRenameChange: (value: string) => void;
   onInlineRenameCommit: () => void;
   onInlineRenameCancel: () => void;
@@ -63,6 +65,8 @@ interface LargeIconCardProps {
   onDragLeave?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   inlineRename: LargeIconsGridProps['inlineRename'];
+  inlineRenameValue: LargeIconsGridProps['inlineRenameValue'];
+  inlineRenameRef?: LargeIconsGridProps['inlineRenameRef'];
   onInlineRenameChange: LargeIconsGridProps['onInlineRenameChange'];
   onInlineRenameCommit: LargeIconsGridProps['onInlineRenameCommit'];
   onInlineRenameCancel: LargeIconsGridProps['onInlineRenameCancel'];
@@ -85,13 +89,16 @@ const LargeIconCard = React.memo<LargeIconCardProps>(({
   onDragLeave,
   onDragEnd,
   inlineRename,
+  inlineRenameValue,
+  inlineRenameRef,
   onInlineRenameChange,
   onInlineRenameCommit,
   onInlineRenameCancel,
   formatBytes,
   showFileExtensions = true,
 }) => {
-  const renameRef = useRef<HTMLInputElement>(null);
+  const localRenameRef = useRef<HTMLInputElement>(null);
+  const renameRef = inlineRenameRef ?? localRenameRef;
   const isRenaming = inlineRename?.path === file.path;
   const isImage = IMAGE_EXTENSIONS.test(file.name);
 
@@ -193,7 +200,7 @@ const LargeIconCard = React.memo<LargeIconCardProps>(({
           ref={renameRef}
           autoFocus
           type="text"
-          value={inlineRename?.name ?? ''}
+          value={inlineRenameValue}
           onChange={(e) => onInlineRenameChange(e.target.value)}
           onKeyDown={handleRenameKeyDown}
           onBlur={onInlineRenameCommit}
@@ -240,6 +247,8 @@ export function LargeIconsGrid({
   onDragEnd,
   dragOverTarget,
   inlineRename,
+  inlineRenameValue,
+  inlineRenameRef,
   onInlineRenameChange,
   onInlineRenameCommit,
   onInlineRenameCancel,
@@ -286,6 +295,8 @@ export function LargeIconsGrid({
         onDragLeave={onDragLeave}
         onDragEnd={onDragEnd}
         inlineRename={inlineRename}
+        inlineRenameValue={inlineRenameValue}
+        inlineRenameRef={inlineRenameRef}
         onInlineRenameChange={onInlineRenameChange}
         onInlineRenameCommit={onInlineRenameCommit}
         onInlineRenameCancel={onInlineRenameCancel}
@@ -295,8 +306,8 @@ export function LargeIconsGrid({
     );
   }, [files, selectedFiles, dragOverTarget, currentPath, getFileIcon, onFileClick,
     onFileDoubleClick, onContextMenu, onDragStart, onDragOver, onDrop, onDragLeave,
-    onDragEnd, inlineRename, onInlineRenameChange, onInlineRenameCommit,
-    onInlineRenameCancel, formatBytes, showFileExtensions]);
+    onDragEnd, inlineRename, inlineRenameValue, inlineRenameRef, onInlineRenameChange,
+    onInlineRenameCommit, onInlineRenameCancel, formatBytes, showFileExtensions]);
 
   // Non-virtualized path for small directories (<=100 items)
   if (!shouldVirtualize) {

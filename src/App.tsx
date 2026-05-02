@@ -9430,6 +9430,8 @@ interface UpdateVerificationInfo {
                         onDragEnd={handleDragEnd}
                         dragOverTarget={dropTargetPath}
                         inlineRename={inlineRename}
+                        inlineRenameValue={inlineRenameValue}
+                        inlineRenameRef={inlineRenameRef}
                         onInlineRenameChange={setInlineRenameValue}
                         onInlineRenameCommit={commitInlineRename}
                         onInlineRenameCancel={() => setInlineRename(null)}
