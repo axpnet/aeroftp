@@ -783,23 +783,27 @@ export const ConnectionScreen: React.FC<ConnectionScreenProps> = ({
         }
     };
 
-    const hasProviderLogoForSave = !!PROVIDER_LOGOS[selectedProviderId || connectionParams.protocol || ''];
+    const providerLogoIdForSave = selectedProviderId || connectionParams.protocol || '';
+    const ProviderLogoForSave = PROVIDER_LOGOS[providerLogoIdForSave];
+    const hasProviderLogoForSave = !!ProviderLogoForSave;
 
     const renderIconPicker = () => {
-        if (hasProviderLogoForSave) return null;
         const proto = connectionParams.protocol || 'ftp';
-        const hasIcon = !!customIconForSave || !!faviconForSave;
+        const hasOverride = !!customIconForSave || !!faviconForSave;
+        const hasPreviewIcon = hasOverride || hasProviderLogoForSave;
         const letter = (connectionName || connectionParams.server || '?').charAt(0).toUpperCase();
         return (
             <div className="mt-2">
                 <label className="block text-xs font-medium text-gray-500 mb-1">{t('settings.serverIcon')}</label>
                 <div className="flex items-start gap-3">
                     <div className="flex items-center gap-3 flex-1">
-                        <div className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center ${hasIcon ? 'bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500' : `bg-gradient-to-br ${PROTOCOL_COLORS[proto] || PROTOCOL_COLORS.ftp} text-white`}`}>
+                        <div className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center ${hasPreviewIcon ? 'bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500' : `bg-gradient-to-br ${PROTOCOL_COLORS[proto] || PROTOCOL_COLORS.ftp} text-white`}`}>
                             {customIconForSave ? (
                                 <img src={customIconForSave} alt="" className="w-6 h-6 rounded object-contain" />
                             ) : faviconForSave ? (
                                 <img src={faviconForSave} alt="" className="w-6 h-6 rounded object-contain" />
+                            ) : ProviderLogoForSave ? (
+                                <ProviderLogoForSave size={24} />
                             ) : (
                                 <span className="font-bold text-sm">{letter}</span>
                             )}
