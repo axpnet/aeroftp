@@ -98,7 +98,7 @@ dependencies = [
  "rustls",
  "rustls-native-certs",
  "rustls-pki-types",
- "scrypt 0.11.0",
+ "scrypt 0.12.0",
  "secrecy 0.10.3",
  "semver",
  "serde",

@@ -139,7 +139,7 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 libc = "0.2"                                                              # Unix UID for badge socket path
 
 # Cryptomator vault support (v1.6.0)
-scrypt = "0.11"                                                        # Cryptomator KDF
+scrypt = "0.12"                                                        # Cryptomator KDF
 aes-kw = "0.2"                                                         # AES Key Wrap (RFC 3394)
 aes-siv = "0.7"                                                        # AES-SIV filename encryption
 data-encoding = "2"                                                    # Base32/Base64 encoding
