@@ -626,6 +626,13 @@ impl FileBaseline {
     /// returned source is positioned arbitrarily: every `read_block` does
     /// its own `seek` so concurrent or out-of-order reads are safe.
     pub async fn open(path: &Path) -> std::io::Result<Self> {
+        // Prevent path traversal attacks by rejecting paths containing '..'.
+        if path.components().any(|c| c == std::path::Component::ParentDir) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("Invalid input: {}", path.display()),
+            ));
+        }
         let file = tokio::fs::File::open(path).await?;
         let metadata = file.metadata().await?;
         Ok(Self {
