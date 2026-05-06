@@ -14666,6 +14666,16 @@ fn benchmark_provider_hint(
     }
 }
 
+fn benchmark_remote_roots(initial_path: &str, report_id: &str) -> (String, String) {
+    let bench_base = resolve_cli_remote_path(initial_path, ".aeroftp-bench");
+    let test_root = if bench_base.trim_end_matches('/').is_empty() {
+        format!(".aeroftp-bench/{}", report_id)
+    } else {
+        format!("{}/{}", bench_base.trim_end_matches('/'), report_id)
+    };
+    (bench_base, test_root)
+}
+
 fn benchmark_sanitization_sweep(serialized: &str) -> Result<(), String> {
     // Belt-and-suspenders: regex sweep for common credential prefixes,
     // IPs, OS path prefixes, and email patterns. If any of these match,
@@ -14744,17 +14754,17 @@ async fn cmd_benchmark(
         );
     }
 
-    let (mut provider, _initial_path) = match create_and_connect("_", cli, format).await {
+    let (mut provider, initial_path) = match create_and_connect("_", cli, format).await {
         Ok(v) => v,
         Err(code) => return code,
     };
     let protocol = provider.provider_type().to_string();
 
     let report_id = uuid::Uuid::new_v4().to_string();
-    let test_root = format!("/.aeroftp-bench/{}", report_id);
-    // Best-effort root creation: provider may auto-create on upload (S3,
-    // Drive...) or already-have-/. Failure here is not fatal.
-    let _ = provider.mkdir("/.aeroftp-bench").await;
+    let (bench_base, test_root) = benchmark_remote_roots(&initial_path, &report_id);
+    // Best-effort root creation: provider may auto-create on upload or may
+    // already have the directory. Failure here is handled by the upload path.
+    let _ = provider.mkdir(&bench_base).await;
     let _ = provider.mkdir(&test_root).await;
 
     let total_start = Instant::now();
@@ -14804,7 +14814,7 @@ async fn cmd_benchmark(
         let mut download_durations_ms: Vec<f64> = Vec::new();
         let mut upload_throughput_mbps: Vec<f64> = Vec::new();
         let mut download_throughput_mbps: Vec<f64> = Vec::new();
-        let mut upload_transient = 0u32;
+        let upload_transient = 0u32;
         let mut upload_fatal = 0u32;
         let mut download_transient = 0u32;
         let mut download_fatal = 0u32;
@@ -14845,9 +14855,7 @@ async fn cmd_benchmark(
                         }
                     }
                     Err(e) => {
-                        let (is_fatal, is_transient) = if is_warmup { (0u32, 1u32) } else { (1u32, 0u32) };
-                        upload_fatal += is_fatal;
-                        upload_transient += is_transient;
+                        upload_fatal += 1;
                         let (h, hh) = benchmark_provider_hint(
                             &protocol,
                             anonymize_extra,
@@ -29869,6 +29877,20 @@ mod tests {
         let (hint, hash) = benchmark_provider_hint("webdav", false, "rid");
         assert_eq!(hint.as_deref(), Some("webdav"));
         assert!(hash.is_none());
+    }
+
+    #[test]
+    fn benchmark_remote_roots_respect_profile_initial_path() {
+        let (base, root) = benchmark_remote_roots("/workdir", "rid");
+        assert_eq!(base, "/workdir/.aeroftp-bench");
+        assert_eq!(root, "/workdir/.aeroftp-bench/rid");
+    }
+
+    #[test]
+    fn benchmark_remote_roots_stay_relative_without_initial_path() {
+        let (base, root) = benchmark_remote_roots("", "rid");
+        assert_eq!(base, ".aeroftp-bench");
+        assert_eq!(root, ".aeroftp-bench/rid");
     }
 
     #[test]
