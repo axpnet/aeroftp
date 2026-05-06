@@ -236,8 +236,14 @@ impl ImageKitProvider {
 
     async fn list_raw(&self, path: &str) -> Result<Vec<IkFile>, ProviderError> {
         validate_path(path)?;
+        // ImageKit `/files` accepts only `file | file-version | folder | all`
+        // for the `type` query parameter. Sending `file-and-folder` (an
+        // earlier guess from the API docs) gets rejected at runtime with
+        // `Invalid configuration: Your request contains invalid value for
+        // type parameter ...`. `all` returns folders + files in one call,
+        // which is what the rest of this provider already expects.
         let url = format!(
-            "{}/files?path={}&type=file-and-folder&limit=1000&skip=0",
+            "{}/files?path={}&type=all&limit=1000&skip=0",
             API_BASE,
             urlencoding::encode(path)
         );
