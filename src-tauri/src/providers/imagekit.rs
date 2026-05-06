@@ -11,10 +11,27 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use reqwest::{multipart, StatusCode};
 use secrecy::{ExposeSecret, SecretString};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use tokio_util::io::ReaderStream;
+
+/// Deserialize a JSON value that may be `null` into a typed default.
+///
+/// `#[serde(default)]` only fires when a field is *missing*; an explicit
+/// `null` still goes through the type's own `Deserialize` impl and trips
+/// for non-`Option` targets like `u64` or `Vec<T>`. ImageKit's `/files`
+/// listing with `type=all` mixes file and folder entries: folder rows
+/// emit `null` for fields that only make sense on files (`size`, `tags`,
+/// `mime`, `width`, `height`, ...), so the response would refuse to
+/// parse against `Vec<IkFile>` until we tolerate `null` here.
+fn null_to_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
+}
 
 use super::{
     response_bytes_with_limit, sanitize_api_error, ProviderConfig, ProviderError, ProviderType,
@@ -58,23 +75,23 @@ impl ImageKitConfig {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct IkFile {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     file_id: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     file_path: String,
     #[serde(default)]
     url: Option<String>,
     #[serde(default)]
     thumbnail_url: Option<String>,
-    #[serde(default, rename = "type")]
+    #[serde(default, rename = "type", deserialize_with = "null_to_default")]
     entry_type: String,
     #[serde(default)]
     file_type: Option<String>,
     #[serde(default)]
     mime: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     size: u64,
     #[serde(default)]
     height: Option<u64>,
@@ -86,7 +103,7 @@ struct IkFile {
     updated_at: Option<String>,
     #[serde(default)]
     is_private_file: Option<bool>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     tags: Vec<String>,
 }
 
